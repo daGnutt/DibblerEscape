@@ -391,7 +391,7 @@ function update(dt) {
     if (d.distracted > 0) {
       d.distracted -= dt;
       if (d.distracted <= 0) { d.distracted = 0; d.distractCd = FRIEND_DISTRACT_COOLDOWN; }
-    } else if (friend && d.distractCd === 0 && Math.hypot(d.x - friend.x, d.y - friend.y) < FRIEND_NOTICE_DIST) {
+    } else if (friend && d.distractCd === 0 && !dibblers.some(o => o.distracted > 0) && Math.hypot(d.x - friend.x, d.y - friend.y) < FRIEND_NOTICE_DIST) {
       d.distracted = FRIEND_DISTRACT_TIME;
       d.chasing = false; d.lastSeen = null; d.path = [];
       popups.push({ x: d.x, y: d.y - 0.8, text: 'Oh, hello there!', t: 1.5 });
