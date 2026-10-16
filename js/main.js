@@ -58,7 +58,7 @@ const isFirefox = /Firefox\//.test(navigator.userAgent);
 const dprParam = Number(new URLSearchParams(location.search).get('dpr'));
 const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1 : 2;
 let dpr = 1;
-let debug = new URLSearchParams(location.search).has('debug');
+const debug = new URLSearchParams(location.search).has('debug');
 const showFps = new URLSearchParams(location.search).has('fps');
 let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
 let staticLayer = null, staticKey = '', lightSprite = null, lightKey = '';
@@ -678,6 +678,23 @@ function drawDebug() {
   }
 }
 
+function drawHotelArrow() {
+  const hotel = exits[0];
+  const dx = hotel.x + 0.5 - player.x, dy = hotel.y + 0.5 - player.y;
+  const cx = W / 2, cy = 74, r = 20;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, 7); ctx.fill();
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Math.atan2(dy, dx));
+  ctx.fillStyle = '#ffd84d'; ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(-r * 0.6, -r * 0.7); ctx.lineTo(-r * 0.25, 0); ctx.lineTo(-r * 0.6, r * 0.7);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  text('🏨', cx + r + 22, cy + 7, 20);
+}
+
 function draw() {
   const th = night ? THEMES.night : THEMES.day;
   ctx.fillStyle = th.sea;
@@ -770,8 +787,9 @@ function draw() {
     text(`Cash: ${'💵'.repeat(Math.max(0, cash))}`, 12, 28, 20, '#fff', 'left');
     text(`Level ${level}`, W / 2, 28, 20);
     text(`Score ${totalScore}  Best ${high}${muted ? '  🔇' : musicMuted ? '  🎵✖' : ''}`, W - 12, 28, 18, '#fff', 'right');
+    drawHotelArrow();
     if (flashMsg) text(flashMsg.text, W / 2, H - 20, 22, '#ffd84d');
-    if (chat) text(chat.text, W / 2, 84, Math.min(20, W / 28), '#9fe870');
+    if (chat) text(chat.text, W / 2, 120, Math.min(20, W / 28), '#9fe870');
     const bw = Math.min(160, W * 0.3);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(10, 46, bw + 4, 14);
@@ -808,7 +826,6 @@ window.addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k.startsWith('Arrow') || k === ' ') e.preventDefault();
   if (k === 'm') { toggleMute(); return; }
-  if (k === 'g') { debug = !debug; return; }
   if (k === 'n') { toggleMusicMute(); return; }
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
