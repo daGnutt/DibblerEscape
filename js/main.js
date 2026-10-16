@@ -345,6 +345,7 @@ function update(dt) {
       d.chasing = true;
       d.lost = 0;
       d.lastSeen = tileOf(player);
+      if (rally) d.rallyDone = rally.id; // has eyes on the tourist: ignore the group chat
     } else if (d.chasing) {
       d.lost += dt;
       const arrived = d.lastSeen && Math.hypot(d.x - (d.lastSeen[0] + 0.5), d.y - (d.lastSeen[1] + 0.5)) < 0.3;
