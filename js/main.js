@@ -58,6 +58,7 @@ const isFirefox = /Firefox\//.test(navigator.userAgent);
 const dprParam = Number(new URLSearchParams(location.search).get('dpr'));
 const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1 : 2;
 let dpr = 1;
+let debug = new URLSearchParams(location.search).has('debug');
 const showFps = new URLSearchParams(location.search).has('fps');
 let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
 let staticLayer = null, staticKey = '', lightSprite = null, lightKey = '';
@@ -266,9 +267,8 @@ function canSee(d) {
   return dist < NOTICE_RADIUS || angleDiff(d.face, Math.atan2(player.y - d.y, player.x - d.x)) <= VIEW_FOV / 2;
 }
 
-function viewConePoints(d) {
+function viewConePoints(d, rays = 14) {
   const pts = [[d.x, d.y]];
-  const rays = 14;
   for (let i = 0; i <= rays; i++) {
     const a = d.face - VIEW_FOV / 2 + (VIEW_FOV * i) / rays;
     const cx = Math.cos(a), cy = Math.sin(a);
@@ -653,6 +653,31 @@ function drawTitle(th) {
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
 }
 
+function drawDebug() {
+  const px = x => ox + x * tile, py = y => oy + y * tile;
+  ctx.lineWidth = 1;
+  for (const d of dibblers) {
+    ctx.strokeStyle = d.sees ? 'rgba(255,0,0,0.8)' : 'rgba(0,255,255,0.6)';
+    ctx.beginPath();
+    for (const [x, y] of viewConePoints(d, 28).slice(1)) { ctx.moveTo(px(d.x), py(d.y)); ctx.lineTo(px(x), py(y)); }
+    ctx.stroke();
+    // Remaining route and its final destination.
+    const route = [[d.x, d.y], ...d.path.map(([x, y]) => [x + 0.5, y + 0.5])];
+    if (d.chasing && d.lastSeen) route.push([d.lastSeen[0] + 0.5, d.lastSeen[1] + 0.5]);
+    if (route.length > 1) {
+      ctx.strokeStyle = d.color; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      route.forEach(([x, y], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, px(x), py(y)));
+      ctx.stroke(); ctx.setLineDash([]);
+      const [dx, dy] = route[route.length - 1];
+      ctx.fillStyle = d.color; ctx.strokeStyle = '#000';
+      ctx.beginPath(); ctx.arc(px(dx), py(dy), tile * 0.18, 0, 7); ctx.fill(); ctx.stroke();
+      text(d.name, px(dx), py(dy) - tile * 0.25, 12, '#fff');
+    }
+    ctx.lineWidth = 1;
+  }
+}
+
 function draw() {
   const th = night ? THEMES.night : THEMES.day;
   ctx.fillStyle = th.sea;
@@ -737,6 +762,7 @@ function draw() {
       ensureLightSprite();
       ctx.drawImage(lightSprite, lx - tile * 3.5, ly - tile * 3.5, tile * 7, tile * 7);
     }
+    if (debug) drawDebug();
     for (const p of popups) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -782,6 +808,7 @@ window.addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k.startsWith('Arrow') || k === ' ') e.preventDefault();
   if (k === 'm') { toggleMute(); return; }
+  if (k === 'g') { debug = !debug; return; }
   if (k === 'n') { toggleMusicMute(); return; }
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
