@@ -782,7 +782,7 @@ function drawTitle(th) {
   text('Get back to your hotel with cash left!', W / 2, py, fs);
   text('Dodge the street merchants and crabs. Always pet the cats.', W / 2, py + fs * 1.5, fs);
   text('Arrows / WASD move · Shift sprint · P pause · M mute', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
-  text(Math.floor(time * 2) % 2 ? 'Press any key or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
+  text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
 }
 
@@ -946,7 +946,7 @@ function draw() {
   if (state === 'title') drawTitle(th);
   if (state === 'pause') overlay('Paused', ['Press P or tap to resume']);
   if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
-  if (state === 'gameOver') overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press any key or tap to retry']);
+  if (state === 'gameOver') overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press SPACE or tap to retry']);
   if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
 }
 
@@ -957,6 +957,10 @@ window.addEventListener('keydown', e => {
   if (k === 'n') { toggleMusicMute(); return; }
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
+  if (state === 'title' || state === 'gameOver') {
+    if (k === ' ' && !e.repeat) advance();
+    return;
+  }
   if (state !== 'play' && !e.repeat) { advance(); return; }
   if (k === 'Control') { if (!e.repeat) kickFriend(); return; }
   keys.add(k);
@@ -966,6 +970,11 @@ window.addEventListener('blur', () => { keys.clear(); if (state === 'play') stat
 
 canvas.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse') touchSeen = true;
+  if (state === 'title' || state === 'gameOver') {
+    // Touch screens have no space bar, so taps still start/restart there.
+    if (e.pointerType !== 'mouse') advance();
+    return;
+  }
   if (state !== 'play') { advance(); return; }
   const b = sprintBtnRect();
   if (touchSeen && Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.r) {
