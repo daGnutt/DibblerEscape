@@ -85,6 +85,22 @@ export function drawPalmTile(ctx, th, px, py, s, t, seed) {
   ctx.lineCap = 'butt';
 }
 
+let glowCache = { s: 0, c: null };
+function glowSprite(s) {
+  if (glowCache.s === s) return glowCache.c;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.ceil(s * 3 * dpr);
+  const g = c.getContext('2d');
+  g.scale(dpr, dpr);
+  const gr = g.createRadialGradient(s * 1.5, s * 1.15, s * 0.1, s * 1.5, s * 1.15, s * 1.2);
+  gr.addColorStop(0, 'rgba(120,220,255,0.35)'); gr.addColorStop(1, 'rgba(120,220,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, s * 3, s * 3);
+  glowCache = { s, c };
+  return c;
+}
+
 export function drawFountain(ctx, th, px, py, s, t, night) {
   ctx.fillStyle = th.stone;
   ctx.beginPath(); ctx.ellipse(px + s / 2, py + s * 0.62, s * 0.46, s * 0.3, 0, 0, 7); ctx.fill();
@@ -103,10 +119,8 @@ export function drawFountain(ctx, th, px, py, s, t, night) {
     ctx.stroke();
   }
   if (night) {
-    const g = ctx.createRadialGradient(px + s / 2, py + s * 0.55, s * 0.1, px + s / 2, py + s * 0.55, s * 1.2);
-    g.addColorStop(0, 'rgba(120,220,255,0.35)'); g.addColorStop(1, 'rgba(120,220,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(px - s, py - s * 0.6, s * 3, s * 3);
+    const sprite = glowSprite(s);
+    ctx.drawImage(sprite, px - s, py - s * 0.6, s * 3, s * 3);
   }
 }
 

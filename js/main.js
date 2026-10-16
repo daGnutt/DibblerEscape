@@ -52,10 +52,59 @@ let night = !!(darkQuery && darkQuery.matches);
 if (darkQuery) darkQuery.addEventListener('change', e => { night = e.matches; });
 const sprintBtnRect = () => ({ x: W - 70, y: H - 80, r: 44 });
 
+const MAX_DPR = 2;
+let dpr = 1;
+const showFps = new URLSearchParams(location.search).has('fps');
+let fpsText = '', fpsAcc = 0, fpsFrames = 0;
+let staticLayer = null, staticKey = '', lightSprite = null, lightKey = '';
+
+function makeLayer(w, h) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * dpr)); c.height = Math.max(1, Math.ceil(h * dpr));
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [c, g];
+}
+
+// Ground and houses never change within a level, so render them once and blit.
+function ensureStaticLayer(th) {
+  const key = `${tile}|${dpr}|${night}`;
+  if (staticLayer && key === staticKey && maze.grid === staticMazeGrid) return;
+  staticMazeGrid = maze.grid;
+  staticKey = key;
+  const [c, g] = makeLayer(tile * maze.w, tile * maze.h);
+  for (let y = 0; y < maze.h; y++) {
+    for (let x = 0; x < maze.w; x++) {
+      const px = x * tile, py = y * tile;
+      drawGround(g, th, x, y, px, py, tile);
+      if (!maze.grid[y][x]) continue;
+      if (!isProp(x, y)) drawHouse(g, th, x, y, px, py, tile, night);
+    }
+  }
+  staticLayer = c;
+}
+
+const openAt = (x, y) => x >= 0 && y >= 0 && x < maze.w && y < maze.h && !maze.grid[y][x];
+const isFountain = (x, y) => openAt(x - 1, y) && openAt(x + 1, y) && openAt(x, y - 1) && openAt(x, y + 1);
+const isProp = (x, y) => isFountain(x, y) || hash(x + 3, y + 8) < 0.16;
+let staticMazeGrid = null;
+
+function ensureLightSprite() {
+  const key = `${tile}|${dpr}`;
+  if (lightSprite && key === lightKey) return;
+  lightKey = key;
+  const [c, g] = makeLayer(tile * 7, tile * 7);
+  const gr = g.createRadialGradient(tile * 3.5, tile * 3.5, tile * 0.3, tile * 3.5, tile * 3.5, tile * 3.5);
+  gr.addColorStop(0, 'rgba(255,214,140,0.28)'); gr.addColorStop(1, 'rgba(255,214,140,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, tile * 7, tile * 7);
+  lightSprite = c;
+}
+
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
   W = window.innerWidth; H = window.innerHeight;
-  canvas.width = W * dpr; canvas.height = H * dpr;
+  dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (maze) layout();
 }
@@ -69,9 +118,12 @@ function layout() {
 }
 
 const isWall = (x, y) => y < 0 || x < 0 || y >= maze.h || x >= maze.w || maze.grid[y][x] === 1;
+let openCache = null, openCacheGrid = null;
 const openTiles = () => {
+  if (openCacheGrid === maze.grid) return openCache;
   const r = [];
   for (let y = 0; y < maze.h; y++) for (let x = 0; x < maze.w; x++) if (!maze.grid[y][x]) r.push([x, y]);
+  openCache = r; openCacheGrid = maze.grid;
   return r;
 };
 
@@ -442,17 +494,15 @@ function draw() {
   ctx.fillStyle = th.sea;
   ctx.fillRect(0, 0, W, H);
   if (maze) {
-    const openAt = (x, y) => x >= 0 && y >= 0 && x < maze.w && y < maze.h && !maze.grid[y][x];
+    ensureStaticLayer(th);
+    ctx.drawImage(staticLayer, ox, oy, tile * maze.w, tile * maze.h);
     const props = [];
     for (let y = 0; y < maze.h; y++) {
       for (let x = 0; x < maze.w; x++) {
-        const px = ox + x * tile, py = oy + y * tile;
-        drawGround(ctx, th, x, y, px, py, tile);
         if (!maze.grid[y][x]) continue;
-        const isolated = openAt(x - 1, y) && openAt(x + 1, y) && openAt(x, y - 1) && openAt(x, y + 1);
-        if (isolated) props.push({ y: y + 0.9, f: () => drawFountain(ctx, th, px, py, tile, time, night) });
+        const px = ox + x * tile, py = oy + y * tile;
+        if (isFountain(x, y)) props.push({ y: y + 0.9, f: () => drawFountain(ctx, th, px, py, tile, time, night) });
         else if (hash(x + 3, y + 8) < 0.16) props.push({ y: y + 0.9, f: () => drawPalmTile(ctx, th, px, py, tile, time, hash(x, y)) });
-        else drawHouse(ctx, th, x, y, px, py, tile, night);
       }
     }
     for (const e of exits) {
@@ -485,10 +535,8 @@ function draw() {
       ctx.fillStyle = th.overlay;
       ctx.fillRect(ox, oy, tile * maze.w, tile * maze.h);
       const lx = ox + player.x * tile, ly = oy + player.y * tile;
-      const g = ctx.createRadialGradient(lx, ly, tile * 0.3, lx, ly, tile * 3.5);
-      g.addColorStop(0, 'rgba(255,214,140,0.28)'); g.addColorStop(1, 'rgba(255,214,140,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(lx - tile * 3.5, ly - tile * 3.5, tile * 7, tile * 7);
+      ensureLightSprite();
+      ctx.drawImage(lightSprite, lx - tile * 3.5, ly - tile * 3.5, tile * 7, tile * 7);
     }
     for (const p of popups) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
 
@@ -518,6 +566,7 @@ function draw() {
       ctx.beginPath(); ctx.arc(joy.sx + joy.x * 50, joy.sy + joy.y * 50, 22, 0, 7); ctx.fill();
     }
   }
+  if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
   if (state === 'title') drawTitle(th);
   if (state === 'pause') overlay('Paused', ['Press P or tap to resume']);
   if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
@@ -580,6 +629,10 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  if (showFps) {
+    fpsAcc += dt; fpsFrames++;
+    if (fpsAcc >= 0.5) { fpsText = `${Math.round(fpsFrames / fpsAcc)} fps  dpr ${dpr}`; fpsAcc = fpsFrames = 0; }
+  }
   update(dt);
   updateMusic(dt);
   draw();
