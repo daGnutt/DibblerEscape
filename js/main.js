@@ -56,7 +56,7 @@ const sprintBtnRect = () => ({ x: W - 70, y: H - 80, r: 44 });
 // Firefox's software-heavy canvas 2D is slow at high pixel counts, so render it at a lower resolution (override with ?dpr=).
 const isFirefox = /Firefox\//.test(navigator.userAgent);
 const dprParam = Number(new URLSearchParams(location.search).get('dpr'));
-const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1.25 : 2;
+const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1 : 2;
 let dpr = 1;
 const showFps = new URLSearchParams(location.search).has('fps');
 let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
@@ -601,10 +601,16 @@ function drawTitle(th) {
 function draw() {
   const th = night ? THEMES.night : THEMES.day;
   ctx.fillStyle = th.sea;
-  ctx.fillRect(0, 0, W, H);
-  if (maze) {
+  if (!maze) ctx.fillRect(0, 0, W, H);
+  else {
+    // Only paint the sea around the maze; the static layer covers the rest.
+    const mw = tile * maze.w, mh = tile * maze.h;
+    ctx.fillRect(0, 0, W, oy);
+    ctx.fillRect(0, oy + mh, W, H - oy - mh);
+    ctx.fillRect(0, oy, ox, mh);
+    ctx.fillRect(ox + mw, oy, W - ox - mw, mh);
     ensureStaticLayer(th);
-    ctx.drawImage(staticLayer, ox, oy, tile * maze.w, tile * maze.h);
+    ctx.drawImage(staticLayer, ox, oy, mw, mh);
     const props = [];
     for (let y = 0; y < maze.h; y++) {
       for (let x = 0; x < maze.w; x++) {
