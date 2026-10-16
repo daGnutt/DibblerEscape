@@ -128,6 +128,19 @@ export function drawCrab(ctx, x, y, s, t) {
   ctx.restore();
 }
 
+export function drawBanana(ctx, x, y, s) {
+  ctx.save();
+  ctx.translate(x, y + s * 0.1);
+  ctx.rotate(-0.3);
+  ctx.strokeStyle = '#7a5a00'; ctx.lineWidth = s * 0.03; ctx.fillStyle = '#ffd93b';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.2, 0);
+  ctx.quadraticCurveTo(0, s * 0.22, s * 0.2, -s * 0.02);
+  ctx.quadraticCurveTo(0, s * 0.08, -s * 0.2, 0);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
 export function drawHotel(ctx, x, y, s) {
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.8, '#fff1c9', s);
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.2, '#e0453a', s);

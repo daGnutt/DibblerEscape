@@ -1,5 +1,5 @@
 import { rng, generateMaze, bfs } from './maze.js';
-import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawHotel, drawBus } from './art.js';
+import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
@@ -18,7 +18,8 @@ let state = 'title'; // title | play | pause | levelDone | gameOver
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
 const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
-let crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
+const PEEL_R = 0.4, PLAYER_SLIDE_TIME = 0.6, PLAYER_SLIDE_SPEED = 5, DIBBLER_SLIP_TIME = 2, DIBBLER_SLIDE_TIME = 0.5;
+let peels = [], crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
   'Hello my friend!',
@@ -187,6 +188,10 @@ function startLevel() {
   cats = Array.from({ length: nC }, () => {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, tipped: false, wait: rand() * 3 };
+  });
+  peels = Array.from({ length: Math.min(2 + Math.floor(level / 2), 8) }, () => {
+    const [x, y] = pick();
+    return { x: x + 0.5, y: y + 0.5 };
   });
   crabs = Array.from({ length: Math.min(1 + Math.floor(level / 2), 8) }, () => {
     const [x, y] = pick();
@@ -405,11 +410,13 @@ function update(dt) {
   } else {
     const stunned = player.stun > 0;
     if (stunned) player.stun -= dt;
-    const [vx, vy] = stunned ? [0, 0] : inputVec();
+    const sliding = player.slide > 0;
+    if (sliding) player.slide -= dt;
+    const [vx, vy] = sliding ? player.slideDir : stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
-    const wantsSprint = (keys.has('Shift') || sprintBtn.down) && (vx || vy);
+    const wantsSprint = !sliding && (keys.has('Shift') || sprintBtn.down) && (vx || vy);
     player.sprinting = !!wantsSprint && !player.exhausted && player.stamina > 0;
-    const spd = player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
+    const spd = sliding ? PLAYER_SLIDE_SPEED : player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
     if (player.sprinting && player.moving) {
       puffAcc += dt;
       stepAcc += dt;
@@ -436,6 +443,28 @@ function update(dt) {
   const k = Math.min(1, dt * 12);
   player.vx = (player.vx || 0) + ((player.x - prevPX) / dt - (player.vx || 0)) * k;
   player.vy = (player.vy || 0) + ((player.y - prevPY) / dt - (player.vy || 0)) * k;
+
+  for (let i = peels.length - 1; i >= 0; i--) {
+    const pl = peels[i];
+    if (!(player.slide > 0) && !petting && Math.hypot(pl.x - player.x, pl.y - player.y) < PEEL_R) {
+      const m = Math.hypot(player.vx || 0, player.vy || 0);
+      player.slideDir = m > 0.1 ? [player.vx / m, player.vy / m] : [player.dir, 0];
+      player.slide = PLAYER_SLIDE_TIME;
+      sfx.yelp();
+      popups.push({ x: player.x, y: player.y - 0.8, text: 'Whoa!', t: 1.2 });
+      peels.splice(i, 1);
+      continue;
+    }
+    for (const d of dibblers) {
+      if (d.slip > 0 || Math.hypot(pl.x - d.x, pl.y - d.y) >= PEEL_R) continue;
+      d.slip = DIBBLER_SLIP_TIME;
+      d.slipDir = [Math.cos(d.face), Math.sin(d.face)];
+      d.path = [];
+      popups.push({ x: d.x, y: d.y - 0.8, text: 'Waaah!', t: 1.5 });
+      peels.splice(i, 1);
+      break;
+    }
+  }
 
   for (const c of crabs) {
     c.cooldown = Math.max(0, c.cooldown - dt);
@@ -506,7 +535,7 @@ function update(dt) {
       popups.push({ x: d.x, y: d.y - 0.8, text: 'Oh, hello there!', t: 1.5 });
     }
     const distracted = d.distracted > 0;
-    d.sees = !distracted && startGrace <= 0 && canSee(d);
+    d.sees = !distracted && !(d.slip > 0) && startGrace <= 0 && canSee(d);
     if (d.sees) {
       if (!d.chasing) shoutSpotted(d);
       d.chasing = true;
@@ -543,7 +572,11 @@ function update(dt) {
       }
     }
     const hunting = d.sees || d.chasing || (rally && d.rallyDone !== rally.id);
-    if (distracted) {
+    if (d.slip > 0) {
+      d.slip -= dt;
+      if (DIBBLER_SLIP_TIME - d.slip < DIBBLER_SLIDE_TIME) moveEntity(d, d.slipDir[0] * 4 * dt, d.slipDir[1] * 4 * dt, 0.28);
+      d.repath = 0;
+    } else if (distracted) {
       d.faceTarget = Math.atan2(friend.y - d.y, friend.x - d.x);
     } else if (d.sees && (dist < 1.2 || !d.path.length)) {
       // Close in on the exact position so a stationary (petting) player can't dodge by tile offset.
@@ -565,7 +598,7 @@ function update(dt) {
       if (moved > 0 && d.puffAcc > 0.05) { d.puffAcc = 0; emitPuff(d.x, d.y + 0.35, 'rgba(210,210,210,'); }
     }
     turnToward(d, dt);
-    if (dist < CATCH_DIST) {
+    if (dist < CATCH_DIST && !(d.slip > 0)) {
       cash--;
       sfx.coin();
       popups.push({ x: player.x, y: player.y - 0.8, text: 'You throw money! -1 cash', t: 1.5 });
@@ -755,6 +788,7 @@ function draw() {
     }
     const ents = [
       ...props,
+      ...peels.map(p => ({ y: p.y - 0.4, f: () => blit(sprite('peel', 2, (g, s) => drawBanana(g, 0, 0, s)), ox + p.x * tile, oy + p.y * tile) })),
       ...crabs.map(c => ({ y: c.y, f: () => {
         const tf = Math.floor(time * 20) % 31;
         blit(sprite(`crab${tf}`, 2, (g, s) => drawCrab(g, 0, 0, s, tf / 20)), ox + c.x * tile, oy + c.y * tile);
