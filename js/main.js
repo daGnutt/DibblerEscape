@@ -45,6 +45,7 @@ const keys = new Set();
 const joy = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0 };
 const sprintBtn = { down: false, id: null };
 let touchSeen = false;
+const kickBtnRect = () => ({ x: W - 70, y: H - 180, r: 36 });
 let particles = [], puffAcc = 0;
 const DAY_SMOKE = 'rgba(85,75,70,';
 const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -625,6 +626,12 @@ function draw() {
       ctx.fillStyle = sprintBtn.down ? 'rgba(255,216,77,0.8)' : 'rgba(255,255,255,0.35)';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
       text('SPRINT', b.x, b.y + 6, 16);
+      if (friend) {
+        const k = kickBtnRect();
+        ctx.fillStyle = friend.fallen > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(77,184,255,0.5)';
+        ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.fill();
+        text('KICK', k.x, k.y + 6, 15);
+      }
     }
     if (joy.active) {
       ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 3;
@@ -659,6 +666,11 @@ canvas.addEventListener('pointerdown', e => {
   const b = sprintBtnRect();
   if (touchSeen && Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.r) {
     sprintBtn.down = true; sprintBtn.id = e.pointerId;
+    return;
+  }
+  const kb = kickBtnRect();
+  if (touchSeen && friend && Math.hypot(e.clientX - kb.x, e.clientY - kb.y) < kb.r) {
+    kickFriend();
     return;
   }
   if (e.pointerType === 'mouse') return;
