@@ -122,6 +122,12 @@ function updateHearing(dt) {
   }
 }
 
+const openTiles = () => {
+  const r = [];
+  for (let y = 0; y < maze.h; y++) for (let x = 0; x < maze.w; x++) if (!maze.grid[y][x]) r.push([x, y]);
+  return r;
+};
+
 function startLevel() {
   const rand = rng((Date.now() ^ (level * 7919)) >>> 0);
   const cw = Math.min(5 + level, 14), ch = Math.min(4 + level, 9);
