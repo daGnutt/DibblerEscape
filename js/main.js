@@ -568,7 +568,7 @@ function draw() {
     ctx.arc(ox + player.x * tile, oy + player.y * tile, HEARING_RADIUS * tile, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    for (const p of popups) if (p.heard || tileSeen(p.x, p.y)) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
+    for (const p of popups) if (!p.heard && tileSeen(p.x, p.y)) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, 40);
@@ -577,6 +577,9 @@ function draw() {
     text(`Score ${totalScore}  Best ${high}${muted ? '  🔇' : ''}`, W - 12, 28, 18, '#fff', 'right');
     if (flashMsg) text(flashMsg.text, W / 2, H - 20, 22, '#ffd84d');
     if (chat) text(chat.text, W / 2, 84, Math.min(20, W / 28), '#9fe870');
+    for (const p of popups) {
+      if (p.heard) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(9, tile * 0.3), '#fff');
+    }
     const bw = Math.min(160, W * 0.3);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(10, 46, bw + 4, 14);
