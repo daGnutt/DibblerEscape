@@ -289,6 +289,18 @@ function kickFriend() {
   popups.push({ x: friend.x, y: friend.y - 0.8, text: 'Ow! My shin!', t: 1.8 });
 }
 
+// Aim where the tourist will be by the time this dibbler arrives, backing off to the nearest open tile.
+function interceptTile(d, speed) {
+  const dist = Math.hypot(d.x - player.x, d.y - player.y);
+  const lead = Math.min(dist / speed, 1.5);
+  const vx = player.vx || 0, vy = player.vy || 0;
+  for (let f = 1; f > 0; f -= 0.1) {
+    const tx = Math.floor(player.x + vx * lead * f), ty = Math.floor(player.y + vy * lead * f);
+    if (maze.grid[ty] && maze.grid[ty][tx] === 0) return [tx, ty];
+  }
+  return tileOf(player);
+}
+
 function update(dt) {
   time += dt;
   if (flashMsg) { flashMsg.t -= dt; if (flashMsg.t <= 0) flashMsg = null; }
@@ -297,6 +309,7 @@ function update(dt) {
   particles = particles.filter(p => p.t < p.life);
   if (state !== 'play') return;
 
+  const prevPX = player.x, prevPY = player.y;
   if (petting) {
     petting.t -= dt;
     if (petting.t <= 0) {
@@ -336,6 +349,10 @@ function update(dt) {
     if (player.exhausted && player.stamina >= STAMINA_MIN_RESTART) player.exhausted = false;
   }
   if (petting) { player.moving = false; player.sprinting = false; }
+  // Smoothed velocity so hunters can lead their target.
+  const k = Math.min(1, dt * 12);
+  player.vx = (player.vx || 0) + ((player.x - prevPX) / dt - (player.vx || 0)) * k;
+  player.vy = (player.vy || 0) + ((player.y - prevPY) / dt - (player.vy || 0)) * k;
 
   for (const c of cats) {
     c.cooldown = Math.max(0, c.cooldown - dt);
@@ -403,7 +420,7 @@ function update(dt) {
       d.repath = 0.35;
       let target = null;
       const rallying = rally && d.rallyDone !== rally.id;
-      if (d.sees) target = tileOf(player);
+      if (d.sees) target = interceptTile(d, speed);
       else if (d.chasing && d.lastSeen) target = d.lastSeen;
       else if (rallying) {
         const [tx, ty] = tileOf(d);
