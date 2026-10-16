@@ -1,9 +1,9 @@
 # Dibbler Escape
 
 ## Main Game Loop
-* You (a tourist) spawn at a random street tile in a procedurally generated maze of streets.
+* You (a tourist) spawn at a random street tile on the map edge in a procedurally generated maze of streets.
 * A number of dibblers (street merchants) spawn: 2 + level, capped at 12.
-* Your goal is to make it back to the safety of your hotel, placed randomly but far from your start, with some of your 3 cash left in your wallet.
+* Your goal is to make it back to the safety of your hotel, on a random map edge far from your start, with some of your 3 cash left in your wallet.
 ** Every third level there is also a guide bus you can escape on.
 * If a dibbler catches you, you throw money at them, and they go away.
 * If you run out of cash, you are game over. The high score is saved in the browser.

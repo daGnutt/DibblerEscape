@@ -154,12 +154,14 @@ function startLevel() {
   const cw = Math.min(5 + level, 14), ch = Math.min(4 + level, 9);
   maze = generateMaze(cw, ch, rand);
   const all = openTiles();
-  const start = all[Math.floor(rand() * all.length)];
+  const isEdge = ([x, y]) => x === 1 || y === 1 || x === maze.w - 2 || y === maze.h - 2;
+  const edges = all.filter(isEdge);
+  const start = edges[Math.floor(rand() * edges.length)];
   const dist = new Map(all.map(t => [t.join(), (bfs(maze.grid, start, t) || []).length]));
-  const far = Math.max(...dist.values()) * 0.6;
+  const far = Math.max(...edges.map(t => dist.get(t.join()))) * 0.6;
   const pickExit = taken => {
-    const c = all.filter(t => dist.get(t.join()) >= far && !taken.some(o => Math.hypot(o[0] - t[0], o[1] - t[1]) < 4));
-    const pool = c.length ? c : all.filter(t => dist.get(t.join()) > 0);
+    const c = edges.filter(t => dist.get(t.join()) >= far && !taken.some(o => Math.hypot(o[0] - t[0], o[1] - t[1]) < 4));
+    const pool = c.length ? c : edges.filter(t => dist.get(t.join()) > 0);
     return pool[Math.floor(rand() * pool.length)];
   };
   const hotel = pickExit([]);
