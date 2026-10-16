@@ -123,6 +123,13 @@ function sprite(key, size, drawFn) {
   return e;
 }
 const blit = (e, x, y) => ctx.drawImage(e.c, x - e.w / 2, y - e.w / 2, e.w, e.w);
+const blitLying = (e, x, y, dir) => {
+  ctx.save();
+  ctx.translate(x, y + tile * 0.2);
+  ctx.rotate((-Math.PI / 2) * (dir < 0 ? -1 : 1));
+  blit(e, 0, 0);
+  ctx.restore();
+};
 const frameOf = (t, rate, n) => Math.floor(((t * rate) % 1 + 1) % 1 * n);
 
 function resize() {
@@ -804,9 +811,7 @@ function draw() {
     const ents = [
       ...props,
       ...peels.map(p => ({ y: p.y - 0.4, f: () => {
-        const gx = ox + p.x * tile, gy = oy + p.y * tile, pulse = 0.5 + 0.5 * Math.sin(time * 4 + p.x);
-        ctx.fillStyle = `rgba(255,240,80,${(0.25 + 0.25 * pulse).toFixed(2)})`;
-        ctx.beginPath(); ctx.arc(gx, gy + tile * 0.1, tile * (0.38 + 0.08 * pulse), 0, 7); ctx.fill();
+        const gx = ox + p.x * tile, gy = oy + p.y * tile;
         blit(sprite('peel', 2, (g, s) => drawBanana(g, 0, 0, s)), gx, gy);
       } })),
       ...crabs.map(c => ({ y: c.y, f: () => {
@@ -824,11 +829,15 @@ function draw() {
       } }] : []),
       ...dibblers.map(d => ({ y: d.y, f: () => {
         const chasing = !!d.sees;
-        blit(sprite(`dib${d.color}${chasing}`, 2, (g, s) => drawDibbler(g, 0, 0, s, 0, d.color, chasing)), ox + d.x * tile + Math.sin(time * 8 + d.x) * tile * 0.03, oy + d.y * tile);
+        const e = sprite(`dib${d.color}${chasing}`, 2, (g, s) => drawDibbler(g, 0, 0, s, 0, d.color, chasing));
+        if (d.slip > 0) blitLying(e, ox + d.x * tile, oy + d.y * tile, d.slipDir[0]);
+        else blit(e, ox + d.x * tile + Math.sin(time * 8 + d.x) * tile * 0.03, oy + d.y * tile);
       } })),
       { y: player.y, f: () => {
         const fr = player.moving ? frameOf(player.runPhase, 1 / (Math.PI * 2), 16) : 0, dir = player.dir < 0 ? -1 : 1;
-        blit(sprite(`tourist${fr}${player.moving}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, player.moving, dir)), ox + player.x * tile, oy + player.y * tile);
+        const e = sprite(`tourist${fr}${player.moving}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, player.moving, dir));
+        if (player.slide > 0) blitLying(e, ox + player.x * tile, oy + player.y * tile, player.slideDir[0]);
+        else blit(e, ox + player.x * tile, oy + player.y * tile);
       } },
     ].sort((a, b) => a.y - b.y);
     ents.forEach(e => e.f());
