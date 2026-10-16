@@ -24,6 +24,7 @@
 * A friend follows you around. Dibblers that walk close to the friend get distracted ("Oh, hello there!") for a few seconds, then have a cooldown.
 * You can kick your friend: they fall over for a while, and the yelp creates an expanding noise ring that dibblers nearby hear and investigate (they head to where the friend fell).
 * Movement collisions slide around corners: pushing into a wall edge next to a gap nudges you toward the nearest gap.
+* Mute settings (all sound, music only) are remembered between reloads.
 * Day and night themes follow the system light/dark preference.
 
 ## Engine Choices

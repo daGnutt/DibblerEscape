@@ -1,8 +1,10 @@
 let ctx = null;
-export let muted = false;
-export const toggleMute = () => (muted = !muted);
-export let musicMuted = false;
-export const toggleMusicMute = () => (musicMuted = !musicMuted);
+const load = key => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
+const save = (key, v) => { try { localStorage.setItem(key, v ? '1' : '0'); } catch { /* storage unavailable */ } };
+export let muted = load('dibblerMuted');
+export const toggleMute = () => { muted = !muted; save('dibblerMuted', muted); return muted; };
+export let musicMuted = load('dibblerMusicMuted');
+export const toggleMusicMute = () => { musicMuted = !musicMuted; save('dibblerMusicMuted', musicMuted); return musicMuted; };
 
 function ensureCtx() {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
