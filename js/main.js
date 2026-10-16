@@ -18,6 +18,26 @@ let state = 'title'; // title | play | pause | levelDone | gameOver
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
 let maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
+const SHOUTS = [
+  'Hey, Icelandic man!',
+  'Hello my friend!',
+  'Psst! Best price!',
+  'Sir! Sir! Looking?',
+  'Special price, only for you!',
+  'Cheap cheap, very good!',
+  'Come, come, look!',
+  'Hey tourist! Free sample!',
+  'Genuine fake watch!',
+  'Buy one, get one free!',
+  'My friend, where you from?',
+  'Hat? Sunglasses? Coconut?',
+  'Taxi? Tour? Massage?',
+  'I give you good deal!',
+  'Hello, Mr. Viking!',
+  'Almost free, sir!',
+  'No hassle, just look!',
+  'Sausage! Best sausage!',
+];
 let popups = [];
 let tile = 32, ox = 0, oy = 0, W = 0, H = 0;
 
@@ -164,7 +184,7 @@ function hasLineOfSight(x0, y0, x1, y1) {
 function shoutSpotted(spotter) {
   sfx.alert();
   spotter.puffTiles = PUFF_TILES;
-  popups.push({ x: spotter.x, y: spotter.y - 0.8, text: 'Hey, Icelandic man!', t: 1.5 });
+  popups.push({ x: spotter.x, y: spotter.y - 0.8, text: SHOUTS[Math.floor(Math.random() * SHOUTS.length)], t: 1.5 });
   const seen = tileOf(player);
   for (const o of dibblers) {
     if (o === spotter || o.sees || Math.hypot(o.x - spotter.x, o.y - spotter.y) > SHOUT_RADIUS) continue;
