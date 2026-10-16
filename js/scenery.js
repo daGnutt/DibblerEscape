@@ -14,6 +14,13 @@ export const THEMES = {
     window: '#ffd56b', water: '#4aa6d8', stone: '#9a97b8', leaf: '#1d6a47', trunk: '#4a3322', planter: '#6a4a5a',
     overlay: 'rgba(15,20,70,0.38)',
   },
+  // Remembered-but-not-currently-visible tiles (fog of war).
+  gray: {
+    sea: '#3a3f4a', sand: ['#8d8d8d', '#858585'], speck: 'rgba(0,0,0,0.15)',
+    houses: ['#6e6e6e', '#707070', '#6a6a6a', '#737373', '#6c6c6c'], roof: '#4a4a4a', shade: 'rgba(0,0,0,0.3)',
+    window: '#9a9a9a', water: '#8a8a8a', stone: '#9d9d9d', leaf: '#5c5c5c', trunk: '#444444', planter: '#777777',
+    overlay: null,
+  },
 };
 
 // Deterministic per-tile randomness so the scenery doesn't flicker.

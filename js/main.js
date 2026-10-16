@@ -49,6 +49,51 @@ function layout() {
 }
 
 const isWall = (x, y) => y < 0 || x < 0 || y >= maze.h || x >= maze.w || maze.grid[y][x] === 1;
+
+// ---- Fog of war ----
+const VISION_RADIUS = 7.5, VISION_RAYS = 540, FOG_COLOR = '#0e131c';
+let explored = [], visible = [];
+
+const tileSeen = (x, y) => {
+  const tx = Math.floor(x), ty = Math.floor(y);
+  return ty >= 0 && tx >= 0 && ty < maze.h && tx < maze.w && visible[ty][tx] === 1;
+};
+
+function resetFog() {
+  explored = Array.from({ length: maze.h }, () => new Uint8Array(maze.w));
+  visible = Array.from({ length: maze.h }, () => new Uint8Array(maze.w));
+  for (const e of exits) explored[e.y][e.x] = 1;
+}
+
+function computeVisibility() {
+  for (const row of visible) row.fill(0);
+  for (let i = 0; i < VISION_RAYS; i++) {
+    const a = (i / VISION_RAYS) * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a);
+    for (let r = 0; r <= VISION_RADIUS; r += 0.1) {
+      const tx = Math.floor(player.x + cx * r), ty = Math.floor(player.y + cy * r);
+      if (tx < 0 || ty < 0 || tx >= maze.w || ty >= maze.h) break;
+      visible[ty][tx] = 1;
+      explored[ty][tx] = 1;
+      if (maze.grid[ty][tx]) break;
+    }
+  }
+}
+
+// Leave a grey ghost where an actor was last seen, until that spot is looked at again.
+function updateGhosts() {
+  for (const e of [...dibblers, ...cats]) {
+    if (tileSeen(e.x, e.y)) {
+      e.vis = true; e.ghost = null; e.lx = e.x; e.ly = e.y;
+    } else if (e.vis) {
+      e.vis = false;
+      e.ghost = { x: e.lx, y: e.ly, away: false };
+    }
+    const g = e.ghost;
+    if (!g) continue;
+    if (!tileSeen(g.x, g.y)) g.away = true;
+    else if (g.away) e.ghost = null;
+  }
+}
 const openTiles = () => {
   const r = [];
   for (let y = 0; y < maze.h; y++) for (let x = 0; x < maze.w; x++) if (!maze.grid[y][x]) r.push([x, y]);
@@ -79,6 +124,9 @@ function startLevel() {
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, tipped: false, wait: rand() * 3 };
   });
   layout();
+  resetFog();
+  computeVisibility();
+  updateGhosts();
   flashMsg = { text: `Level ${level}: reach the ${exits.length > 1 ? 'hotel or the bus' : 'hotel'}!`, t: 3 };
   state = 'play';
 }
@@ -222,6 +270,7 @@ function update(dt) {
     const bx = player.x, by = player.y;
     moveEntity(player, vx * spd * dt, vy * spd * dt, PLAYER_R);
     player.moving = Math.hypot(player.x - bx, player.y - by) > 0.0005;
+    computeVisibility();
     if (player.moving) player.runPhase += dt * (player.sprinting ? 20 : 12);
     if (player.sprinting) {
       player.stamina = Math.max(0, player.stamina - STAMINA_DRAIN * dt);
@@ -330,6 +379,7 @@ function update(dt) {
     }
   }
 
+  updateGhosts();
   for (const e of exits) {
     if (Math.hypot(e.x + 0.5 - player.x, e.y + 0.5 - player.y) < 0.6) {
       const gained = cash * 100 + level * 50;
@@ -424,15 +474,19 @@ function draw() {
   if (maze) {
     const openAt = (x, y) => x >= 0 && y >= 0 && x < maze.w && y < maze.h && !maze.grid[y][x];
     const props = [];
+    ctx.fillStyle = FOG_COLOR;
+    ctx.fillRect(ox, oy, tile * maze.w, tile * maze.h);
     for (let y = 0; y < maze.h; y++) {
       for (let x = 0; x < maze.w; x++) {
+        if (!explored[y][x]) continue;
+        const t2 = visible[y][x] ? th : THEMES.gray, nt = night && !!visible[y][x];
         const px = ox + x * tile, py = oy + y * tile;
-        drawGround(ctx, th, x, y, px, py, tile);
+        drawGround(ctx, t2, x, y, px, py, tile);
         if (!maze.grid[y][x]) continue;
         const isolated = openAt(x - 1, y) && openAt(x + 1, y) && openAt(x, y - 1) && openAt(x, y + 1);
-        if (isolated) props.push({ y: y + 0.9, f: () => drawFountain(ctx, th, px, py, tile, time, night) });
-        else if (hash(x + 3, y + 8) < 0.16) props.push({ y: y + 0.9, f: () => drawPalmTile(ctx, th, px, py, tile, time, hash(x, y)) });
-        else drawHouse(ctx, th, x, y, px, py, tile, night);
+        if (isolated) props.push({ y: y + 0.9, f: () => drawFountain(ctx, t2, px, py, tile, time, nt) });
+        else if (hash(x + 3, y + 8) < 0.16) props.push({ y: y + 0.9, f: () => drawPalmTile(ctx, t2, px, py, tile, time, hash(x, y)) });
+        else drawHouse(ctx, t2, x, y, px, py, tile, nt);
       }
     }
     for (const e of exits) {
@@ -440,6 +494,7 @@ function draw() {
       (e.type === 'hotel' ? drawHotel : drawBus)(ctx, cx, cy, tile);
     }
     for (const d of dibblers) {
+      if (!d.vis) continue;
       const pts = viewConePoints(d);
       ctx.beginPath();
       pts.forEach(([x, y], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, ox + x * tile, oy + y * tile));
@@ -449,12 +504,15 @@ function draw() {
     }
     const ents = [
       ...props,
-      ...cats.map(c => ({ y: c.y, f: () => drawCat(ctx, ox + c.x * tile, oy + c.y * tile, tile, time, petting && petting.cat === c) })),
-      ...dibblers.map(d => ({ y: d.y, f: () => drawDibbler(ctx, ox + d.x * tile, oy + d.y * tile, tile, time, d.color, d.sees) })),
+      ...cats.filter(c => c.vis).map(c => ({ y: c.y, f: () => drawCat(ctx, ox + c.x * tile, oy + c.y * tile, tile, time, petting && petting.cat === c) })),
+      ...dibblers.filter(d => d.vis).map(d => ({ y: d.y, f: () => drawDibbler(ctx, ox + d.x * tile, oy + d.y * tile, tile, time, d.color, d.sees) })),
+      ...cats.filter(c => c.ghost).map(c => ({ y: c.ghost.y, f: () => { ctx.globalAlpha = 0.5; drawCat(ctx, ox + c.ghost.x * tile, oy + c.ghost.y * tile, tile, 0, false, '#9a9a9a'); ctx.globalAlpha = 1; } })),
+      ...dibblers.filter(d => d.ghost).map(d => ({ y: d.ghost.y, f: () => { ctx.globalAlpha = 0.5; drawDibbler(ctx, ox + d.ghost.x * tile, oy + d.ghost.y * tile, tile, 0, '#9a9a9a', false); ctx.globalAlpha = 1; } })),
       { y: player.y, f: () => drawTourist(ctx, ox + player.x * tile, oy + player.y * tile, tile, player.runPhase, false, player.moving, player.dir) },
     ].sort((a, b) => a.y - b.y);
     ents.forEach(e => e.f());
     for (const p of particles) {
+      if (!tileSeen(p.x, p.y)) continue;
       const k = p.t / p.life;
       ctx.fillStyle = `${night ? p.color : DAY_SMOKE}${((night ? 0.6 : 0.75) * (1 - k)).toFixed(2)})`;
       ctx.beginPath();
@@ -470,7 +528,7 @@ function draw() {
       ctx.fillStyle = g;
       ctx.fillRect(lx - tile * 3.5, ly - tile * 3.5, tile * 7, tile * 7);
     }
-    for (const p of popups) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
+    for (const p of popups) if (tileSeen(p.x, p.y)) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, 40);

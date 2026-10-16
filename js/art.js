@@ -79,17 +79,18 @@ export function drawDibbler(ctx, x, y, s, t, color, chasing) {
   ctx.restore();
 }
 
-export function drawCat(ctx, x, y, s, t, petting) {
+export function drawCat(ctx, x, y, s, t, petting, tint) {
+  const fur = tint || '#f4a23c';
   ctx.save();
   ctx.translate(x, y + s * 0.1);
-  ctx.strokeStyle = '#f4a23c'; ctx.lineWidth = s * 0.06;
+  ctx.strokeStyle = fur; ctx.lineWidth = s * 0.06;
   ctx.beginPath(); // tail
   ctx.moveTo(-s * 0.2, 0);
   ctx.quadraticCurveTo(-s * 0.4, -s * 0.1 + Math.sin(t * 4) * s * 0.1, -s * 0.3, -s * 0.3);
   ctx.stroke();
-  ellipse(ctx, 0, 0, s * 0.22, s * 0.15, '#f4a23c', s);
-  ellipse(ctx, s * 0.2, -s * 0.1, s * 0.12, s * 0.11, '#f4a23c', s);
-  ctx.fillStyle = '#f4a23c';
+  ellipse(ctx, 0, 0, s * 0.22, s * 0.15, fur, s);
+  ellipse(ctx, s * 0.2, -s * 0.1, s * 0.12, s * 0.11, fur, s);
+  ctx.fillStyle = fur;
   ctx.beginPath(); // ears
   ctx.moveTo(s * 0.13, -s * 0.18); ctx.lineTo(s * 0.16, -s * 0.28); ctx.lineTo(s * 0.21, -s * 0.2);
   ctx.moveTo(s * 0.22, -s * 0.2); ctx.lineTo(s * 0.28, -s * 0.28); ctx.lineTo(s * 0.3, -s * 0.15);
