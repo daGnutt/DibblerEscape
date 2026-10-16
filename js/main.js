@@ -20,7 +20,7 @@ let high = Number(localStorage.getItem('dibblerHigh') || 0);
 const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
 const PEEL_R = 0.4, PLAYER_SLIDE_TIME = 0.6, PLAYER_SLIDE_SPEED = 5, DIBBLER_SLIP_TIME = 2, DIBBLER_SLIDE_TIME = 0.5;
 const PEEL_DROP_MIN = 8, PEEL_DROP_RANGE = 12, MAX_PEELS = 14, PEEL_ARM_TIME = 2;
-const STALL_CHANCE = 0.3, MAX_STALLS = 6, STALL_HIT_DIST = 0.5, STALL_NOISE_RADIUS = 5;
+const STALL_CHANCE = 0.1, MAX_STALLS = 6, STALL_HIT_DIST = 0.5, STALL_NOISE_RADIUS = 5;
 let stalls = [], peels = [], crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
@@ -482,6 +482,13 @@ function update(dt) {
       sfx.crash();
       popups.push({ x: st.x, y: st.y - 0.8, text: 'CRASH!', t: 1.4 });
       makeNoise(st.x, st.y, STALL_NOISE_RADIUS);
+      for (let n = 0, tries = 0; n < 3 && tries < 12; tries++) {
+        const a = Math.random() * Math.PI * 2, r = 0.5 + Math.random() * 0.6;
+        const px = st.x + Math.cos(a) * r, py = st.y + Math.sin(a) * r;
+        if (isWall(Math.floor(px), Math.floor(py))) continue;
+        peels.push({ x: px, y: py, arm: 0.5 });
+        n++;
+      }
     }
   }
 
