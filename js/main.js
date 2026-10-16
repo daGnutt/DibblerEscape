@@ -58,7 +58,7 @@ const isFirefox = /Firefox\//.test(navigator.userAgent);
 const dprParam = Number(new URLSearchParams(location.search).get('dpr'));
 const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1 : 2;
 let dpr = 1;
-let debug = new URLSearchParams(location.search).has('debug');
+const debug = new URLSearchParams(location.search).has('debug');
 const showFps = new URLSearchParams(location.search).has('fps');
 let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
 let staticLayer = null, staticKey = '', lightSprite = null, lightKey = '';
@@ -808,7 +808,6 @@ window.addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k.startsWith('Arrow') || k === ' ') e.preventDefault();
   if (k === 'm') { toggleMute(); return; }
-  if (k === 'g') { debug = !debug; return; }
   if (k === 'n') { toggleMusicMute(); return; }
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
