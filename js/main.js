@@ -46,7 +46,7 @@ const joy = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0 };
 const sprintBtn = { down: false, id: null };
 let touchSeen = false;
 const kickBtnRect = () => ({ x: W - 70, y: H - 180, r: 36 });
-let particles = [], puffAcc = 0;
+let particles = [], puffAcc = 0, stepAcc = 0;
 const DAY_SMOKE = 'rgba(85,75,70,';
 const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 let night = !!(darkQuery && darkQuery.matches);
@@ -399,7 +399,9 @@ function update(dt) {
     const spd = player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
     if (player.sprinting && player.moving) {
       puffAcc += dt;
+      stepAcc += dt;
       if (puffAcc > 0.04) { puffAcc = 0; emitPuff(player.x - player.dir * 0.15, player.y + 0.38, 'rgba(235,225,200,'); }
+      if (stepAcc > 0.16) { stepAcc = 0; sfx.step(0.14, 1000); }
     }
     const bx = player.x, by = player.y;
     moveEntity(player, vx * spd * dt, vy * spd * dt, PLAYER_R);
@@ -519,6 +521,8 @@ function update(dt) {
       const moved = Math.hypot(d.x - fromX, d.y - fromY);
       d.puffTiles -= moved;
       d.puffAcc = (d.puffAcc || 0) + dt;
+      d.stepAcc = (d.stepAcc || 0) + dt;
+      if (moved > 0 && d.stepAcc > 0.14) { d.stepAcc = 0; sfx.step(0.1 * Math.max(0, 1 - dist / 9), 700); }
       if (moved > 0 && d.puffAcc > 0.05) { d.puffAcc = 0; emitPuff(d.x, d.y + 0.35, 'rgba(210,210,210,'); }
     }
     turnToward(d, dt);

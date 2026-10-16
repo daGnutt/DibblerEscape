@@ -10,6 +10,7 @@
 
 ### Controls
 * Move: arrows/WASD (touch: joystick). Sprint: Shift. Kick friend: Ctrl. Pause: P/Esc. Mute all sound: M. Mute music only: N.
+* Sprinting (and dibblers that just spotted you) makes a pitter-patter of footsteps, louder the closer the dibbler is.
 * Sprinting drains stamina; when it runs out you must recover before sprinting again.
 
 ### Dibblers

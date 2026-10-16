@@ -37,6 +37,7 @@ export const sfx = {
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.1, i * 0.12)); },
   lose() { [400, 300, 220, 150].forEach((f, i) => tone(f, 0.25, 'sawtooth', 0.08, i * 0.2)); },
   tip() { [784, 988, 1175].forEach((f, i) => tone(f, 0.15, 'triangle', 0.09, i * 0.08)); },
+  step(vol = 0.12, pitch = 900) { step_(vol, pitch); },
 };
 
 // ---- Music: a bouncy island loop (C - Am - F - G). Tempo rises with intensity (0..1). ----
@@ -55,15 +56,35 @@ let musicTimer = null, musicOn = false, nextTime = 0, step = 0, intensity = 0;
 
 export const setMusicIntensity = v => { intensity = Math.max(0, Math.min(1, v)); };
 
-function hat(when, vol) {
+function getNoiseBuf() {
   noiseBuf = noiseBuf || (() => {
     const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate);
     const d = b.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return b;
   })();
+  return noiseBuf;
+}
+
+// Short pitter-patter tick; vol scales with distance, pitch varies so steps don't sound identical.
+function step_(vol, pitch) {
+  if (muted || vol <= 0.002) return;
+  try {
+    ensureCtx();
+    const when = ctx.currentTime, dur = 0.05;
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = getNoiseBuf();
+    f.type = 'bandpass'; f.frequency.value = pitch * (0.9 + Math.random() * 0.2); f.Q.value = 2;
+    g.gain.setValueAtTime(vol, when);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    src.connect(f).connect(g).connect(ctx.destination);
+    src.start(when);
+  } catch { /* audio unavailable */ }
+}
+
+function hat(when, vol) {
   const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-  src.buffer = noiseBuf;
+  src.buffer = getNoiseBuf();
   f.type = 'highpass'; f.frequency.value = 6000;
   g.gain.setValueAtTime(vol, when);
   g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
