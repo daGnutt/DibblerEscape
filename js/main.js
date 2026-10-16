@@ -4,7 +4,7 @@ import { sfx, toggleMute, muted, startMusic, stopMusic, setMusicIntensity } from
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false });
 const START_CASH = 3;
 const PLAYER_SPEED = 3.0, SPRINT_SPEED = 5.2, PLAYER_R = 0.28, CATCH_DIST = 0.55;
 const STAMINA_MAX = 100, STAMINA_DRAIN = 40, STAMINA_REGEN = 22, STAMINA_REGEN_DELAY = 0.8, STAMINA_MIN_RESTART = 25;
@@ -53,7 +53,10 @@ let night = !!(darkQuery && darkQuery.matches);
 if (darkQuery) darkQuery.addEventListener('change', e => { night = e.matches; });
 const sprintBtnRect = () => ({ x: W - 70, y: H - 80, r: 44 });
 
-const MAX_DPR = 2;
+// Firefox's software-heavy canvas 2D is slow at high pixel counts, so render it at a lower resolution (override with ?dpr=).
+const isFirefox = /Firefox\//.test(navigator.userAgent);
+const dprParam = Number(new URLSearchParams(location.search).get('dpr'));
+const MAX_DPR = dprParam > 0 ? dprParam : isFirefox ? 1.25 : 2;
 let dpr = 1;
 const showFps = new URLSearchParams(location.search).has('fps');
 let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
@@ -492,15 +495,36 @@ function advance() {
   } else if (state === 'pause') state = 'play';
 }
 
-function text(str, x, y, size, color = '#fff', align = 'center') {
-  ctx.font = `bold ${size}px "Comic Sans MS", system-ui, sans-serif`;
-  ctx.textAlign = align;
-  ctx.lineWidth = size * 0.15;
-  ctx.strokeStyle = '#222';
-  ctx.strokeText(str, x, y);
-  ctx.fillStyle = color;
-  ctx.fillText(str, x, y);
+// Stroked text (especially emoji) is costly per frame in Firefox, so render each string once to a sprite.
+const textCache = new Map();
+function textSprite(str, size, color) {
+  const key = `${size}|${color}|${dpr}|${str}`;
+  let e = textCache.get(key);
+  if (e) return e;
+  if (textCache.size > 300) textCache.clear();
+  const font = `bold ${size}px "Comic Sans MS", system-ui, sans-serif`;
+  const g0 = ctx;
+  g0.font = font;
+  const pad = Math.ceil(size * 0.2);
+  const w = Math.ceil(g0.measureText(str).width) + pad * 2, h = Math.ceil(size * 1.6) + pad;
+  const [c, g] = makeLayer(w, h);
+  g.font = font; g.textAlign = 'left';
+  g.lineWidth = size * 0.15; g.lineJoin = 'round'; g.strokeStyle = '#222';
+  g.strokeText(str, pad, size * 1.2);
+  g.fillStyle = color;
+  g.fillText(str, pad, size * 1.2);
+  e = { c, w, h, pad, base: size * 1.2 };
+  textCache.set(key, e);
+  return e;
 }
+
+function text(str, x, y, size, color = '#fff', align = 'center') {
+  const e = textSprite(str, size, color);
+  const tw = e.w - e.pad * 2;
+  const left = align === 'left' ? x : align === 'right' ? x - tw : x - tw / 2;
+  ctx.drawImage(e.c, left - e.pad, y - e.base, e.w, e.h);
+}
+
 
 function overlay(title, lines) {
   ctx.fillStyle = 'rgba(10,20,35,0.8)';
