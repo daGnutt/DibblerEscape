@@ -19,6 +19,7 @@ let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
 const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
 const PEEL_R = 0.4, PLAYER_SLIDE_TIME = 0.6, PLAYER_SLIDE_SPEED = 5, DIBBLER_SLIP_TIME = 2, DIBBLER_SLIDE_TIME = 0.5;
+const PEEL_DROP_MIN = 8, PEEL_DROP_RANGE = 12, MAX_PEELS = 14, PEEL_ARM_TIME = 2;
 let peels = [], crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
@@ -477,6 +478,7 @@ function update(dt) {
       peels.splice(i, 1);
       continue;
     }
+    if (pl.arm > 0) { pl.arm -= dt; continue; }
     for (const d of dibblers) {
       if (d.slip > 0 || Math.hypot(pl.x - d.x, pl.y - d.y) >= PEEL_R) continue;
       d.slip = DIBBLER_SLIP_TIME;
@@ -557,6 +559,12 @@ function update(dt) {
       popups.push({ x: d.x, y: d.y - 0.8, text: 'Oh, hello there!', t: 1.5 });
     }
     const distracted = d.distracted > 0;
+    d.peelTimer = (d.peelTimer ?? PEEL_DROP_MIN + Math.random() * PEEL_DROP_RANGE) - dt;
+    if (d.peelTimer <= 0) {
+      // Only roaming dibblers litter; hunters keep their eyes on the tourist.
+      if (!d.sees && !d.chasing && !distracted && !(d.slip > 0) && peels.length < MAX_PEELS) peels.push({ x: d.x, y: d.y, arm: PEEL_ARM_TIME });
+      d.peelTimer = PEEL_DROP_MIN + Math.random() * PEEL_DROP_RANGE;
+    }
     d.sees = !distracted && !(d.slip > 0) && startGrace <= 0 && canSee(d);
     if (d.sees) {
       if (!d.chasing) shoutSpotted(d);
