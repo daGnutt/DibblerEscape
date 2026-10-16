@@ -132,12 +132,16 @@ export function drawBanana(ctx, x, y, s) {
   ctx.save();
   ctx.translate(x, y + s * 0.1);
   ctx.rotate(-0.3);
-  ctx.strokeStyle = '#7a5a00'; ctx.lineWidth = s * 0.03; ctx.fillStyle = '#ffd93b';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#3a2a00'; ctx.lineWidth = s * 0.07; ctx.fillStyle = '#ffe14a';
   ctx.beginPath();
-  ctx.moveTo(-s * 0.2, 0);
-  ctx.quadraticCurveTo(0, s * 0.22, s * 0.2, -s * 0.02);
-  ctx.quadraticCurveTo(0, s * 0.08, -s * 0.2, 0);
-  ctx.fill(); ctx.stroke();
+  ctx.moveTo(-s * 0.34, -s * 0.04);
+  ctx.quadraticCurveTo(-s * 0.05, s * 0.42, s * 0.36, -s * 0.1);
+  ctx.quadraticCurveTo(0, s * 0.14, -s * 0.34, -s * 0.04);
+  ctx.closePath();
+  ctx.stroke(); ctx.fill();
+  ctx.fillStyle = '#5a3d00';
+  ctx.fillRect(-s * 0.37, -s * 0.07, s * 0.06, s * 0.06);
   ctx.restore();
 }
 

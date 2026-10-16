@@ -803,7 +803,12 @@ function draw() {
     }
     const ents = [
       ...props,
-      ...peels.map(p => ({ y: p.y - 0.4, f: () => blit(sprite('peel', 2, (g, s) => drawBanana(g, 0, 0, s)), ox + p.x * tile, oy + p.y * tile) })),
+      ...peels.map(p => ({ y: p.y - 0.4, f: () => {
+        const gx = ox + p.x * tile, gy = oy + p.y * tile, pulse = 0.5 + 0.5 * Math.sin(time * 4 + p.x);
+        ctx.fillStyle = `rgba(255,240,80,${(0.25 + 0.25 * pulse).toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(gx, gy + tile * 0.1, tile * (0.38 + 0.08 * pulse), 0, 7); ctx.fill();
+        blit(sprite('peel', 2, (g, s) => drawBanana(g, 0, 0, s)), gx, gy);
+      } })),
       ...crabs.map(c => ({ y: c.y, f: () => {
         const tf = Math.floor(time * 20) % 31;
         blit(sprite(`crab${tf}`, 2, (g, s) => drawCrab(g, 0, 0, s, tf / 20)), ox + c.x * tile, oy + c.y * tile);
