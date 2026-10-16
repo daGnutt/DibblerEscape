@@ -9,7 +9,7 @@
 * If you run out of cash, you are game over. The high score is saved in the browser.
 
 ### Controls
-* Move: arrows/WASD (touch: joystick). Sprint: Shift. Kick friend: Ctrl. Pause: P/Esc. Mute: M.
+* Move: arrows/WASD (touch: joystick). Sprint: Shift. Kick friend: Ctrl. Pause: P/Esc. Mute all sound: M. Mute music only: N.
 * Sprinting drains stamina; when it runs out you must recover before sprinting again.
 
 ### Dibblers

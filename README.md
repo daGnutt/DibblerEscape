@@ -19,7 +19,8 @@ No build step, no dependencies: plain HTML5 canvas and ES modules.
 | Sprint | Shift | Sprint button |
 | Kick your friend | Ctrl | Kick button |
 | Pause | P / Esc | – |
-| Mute | M | – |
+| Mute all sound | M | – |
+| Mute music only | N | – |
 
 Sprinting drains stamina; once exhausted you must recover before sprinting again.
 

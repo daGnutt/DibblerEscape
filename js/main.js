@@ -1,6 +1,6 @@
 import { rng, generateMaze, bfs } from './maze.js';
 import { drawTourist, drawFriend, drawDibbler, drawCat, drawHotel, drawBus } from './art.js';
-import { sfx, toggleMute, muted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
+import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
 const canvas = document.getElementById('c');
@@ -734,7 +734,7 @@ function draw() {
     ctx.fillRect(0, 0, W, 40);
     text(`Cash: ${'💵'.repeat(Math.max(0, cash))}`, 12, 28, 20, '#fff', 'left');
     text(`Level ${level}`, W / 2, 28, 20);
-    text(`Score ${totalScore}  Best ${high}${muted ? '  🔇' : ''}`, W - 12, 28, 18, '#fff', 'right');
+    text(`Score ${totalScore}  Best ${high}${muted ? '  🔇' : musicMuted ? '  🎵✖' : ''}`, W - 12, 28, 18, '#fff', 'right');
     if (flashMsg) text(flashMsg.text, W / 2, H - 20, 22, '#ffd84d');
     if (chat) text(chat.text, W / 2, 84, Math.min(20, W / 28), '#9fe870');
     const bw = Math.min(160, W * 0.3);
@@ -773,6 +773,7 @@ window.addEventListener('keydown', e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k.startsWith('Arrow') || k === ' ') e.preventDefault();
   if (k === 'm') { toggleMute(); return; }
+  if (k === 'n') { toggleMusicMute(); return; }
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
   if (state !== 'play' && !e.repeat) { advance(); return; }

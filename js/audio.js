@@ -1,6 +1,8 @@
 let ctx = null;
 export let muted = false;
 export const toggleMute = () => (muted = !muted);
+export let musicMuted = false;
+export const toggleMusicMute = () => (musicMuted = !musicMuted);
 
 function ensureCtx() {
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
@@ -87,7 +89,7 @@ function playStep(s, when, dur) {
 function schedule() {
   while (nextTime < ctx.currentTime + 0.15) {
     const dur = 60 / (BASE_BPM + (MAX_BPM - BASE_BPM) * intensity) / 2;
-    if (!muted) playStep(step, nextTime, dur);
+    if (!muted && !musicMuted) playStep(step, nextTime, dur);
     nextTime += dur;
     step = (step + 1) % 32;
   }
