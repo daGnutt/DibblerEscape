@@ -1,5 +1,5 @@
 import { rng, generateMaze, bfs } from './maze.js';
-import { drawTourist, drawDibbler, drawCat, drawHotel, drawBus } from './art.js';
+import { drawTourist, drawFriend, drawDibbler, drawCat, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
@@ -17,7 +17,7 @@ const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, NOTICE_RADIUS = 1
 let state = 'title'; // title | play | pause | levelDone | gameOver
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
-let maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
+let friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
   'Hello my friend!',
@@ -150,6 +150,7 @@ function startLevel() {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, tipped: false, wait: rand() * 3 };
   });
+  friend = nD >= 4 ? { x: player.x, y: player.y, path: [], repath: 0, dir: 1, runPhase: 0, moving: false, fallen: 0 } : null;
   layout();
   flashMsg = { text: `Level ${level}: reach the ${exits.length > 1 ? 'hotel or the bus' : 'hotel'}!`, t: 3 };
   state = 'play';
@@ -260,6 +261,34 @@ function groupChat(sender) {
   sfx.alert();
 }
 
+const FRIEND_DISTRACT_TIME = 3, FRIEND_DISTRACT_COOLDOWN = 6, FRIEND_NOTICE_DIST = 1.5;
+const FRIEND_FALL_TIME = 5, FRIEND_KICK_DIST = 1.3;
+
+function updateFriend(dt) {
+  const f = friend;
+  f.moving = false;
+  if (f.fallen > 0) { f.fallen -= dt; return; }
+  f.repath -= dt;
+  const dist = Math.hypot(player.x - f.x, player.y - f.y);
+  if (dist > 1.4 && f.repath <= 0) {
+    f.repath = 0.35;
+    f.path = bfs(maze.grid, tileOf(f), tileOf(player)) || [];
+  } else if (dist <= 1.4) f.path = [];
+  const bx = f.x, by = f.y;
+  followPath(f, PLAYER_SPEED * 0.95, dt);
+  f.moving = Math.hypot(f.x - bx, f.y - by) > 0.0005;
+  if (f.moving) f.runPhase += dt * 12;
+}
+
+function kickFriend() {
+  if (state !== 'play' || !friend || friend.fallen > 0 || petting) return;
+  if (Math.hypot(player.x - friend.x, player.y - friend.y) > FRIEND_KICK_DIST) return;
+  friend.fallen = FRIEND_FALL_TIME;
+  friend.path = [];
+  sfx.alert();
+  popups.push({ x: friend.x, y: friend.y - 0.8, text: 'Ow! My shin!', t: 1.8 });
+}
+
 function update(dt) {
   time += dt;
   if (flashMsg) { flashMsg.t -= dt; if (flashMsg.t <= 0) flashMsg = null; }
@@ -328,6 +357,8 @@ function update(dt) {
     }
   }
 
+  if (friend) updateFriend(dt);
+
   // Hunting dibblers are a bit faster than walking but slower than sprinting.
   const speed = 3.3 + Math.min(level, 10) * 0.07;
   chatCooldown = Math.max(0, chatCooldown - dt);
@@ -339,7 +370,17 @@ function update(dt) {
     d.repath -= dt;
     const fromX = d.x, fromY = d.y;
     const dist = Math.hypot(d.x - player.x, d.y - player.y);
-    d.sees = startGrace <= 0 && canSee(d);
+    d.distractCd = Math.max(0, (d.distractCd || 0) - dt);
+    if (d.distracted > 0) {
+      d.distracted -= dt;
+      if (d.distracted <= 0) { d.distracted = 0; d.distractCd = FRIEND_DISTRACT_COOLDOWN; }
+    } else if (friend && d.distractCd === 0 && Math.hypot(d.x - friend.x, d.y - friend.y) < FRIEND_NOTICE_DIST) {
+      d.distracted = FRIEND_DISTRACT_TIME;
+      d.chasing = false; d.lastSeen = null; d.path = [];
+      popups.push({ x: d.x, y: d.y - 0.8, text: 'Oh, hello there!', t: 1.5 });
+    }
+    const distracted = d.distracted > 0;
+    d.sees = !distracted && startGrace <= 0 && canSee(d);
     if (d.sees) {
       if (!d.chasing) shoutSpotted(d);
       d.chasing = true;
@@ -376,7 +417,9 @@ function update(dt) {
       }
     }
     const hunting = d.sees || d.chasing || (rally && d.rallyDone !== rally.id);
-    if (d.sees && (dist < 1.2 || !d.path.length)) {
+    if (distracted) {
+      d.faceTarget = Math.atan2(friend.y - d.y, friend.x - d.x);
+    } else if (d.sees && (dist < 1.2 || !d.path.length)) {
       // Close in on the exact position so a stationary (petting) player can't dodge by tile offset.
       const m = Math.max(dist, 0.001);
       d.x += ((player.x - d.x) / m) * Math.min(speed * dt, dist);
@@ -461,13 +504,18 @@ function keycap(label, x, y) {
 function drawKeyHints() {
   const y = H - 40;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.roundRect(8, y - 6, 330, 38, 8); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(8, y - 6, friend ? 440 : 330, 38, 8); ctx.fill();
   let x = 14;
   for (const k of ['←', '↑', '↓', '→']) x += keycap(k, x, y) + 4;
   text('Move', x + 22, y + 20, 15);
   x += 62;
   x += keycap('Shift', x, y) + 6;
   text('Sprint', x + 28, y + 20, 15);
+  if (friend) {
+    x += 74;
+    x += keycap('Ctrl', x, y) + 6;
+    text('Kick', x + 22, y + 20, 15);
+  }
 }
 
 function drawTitle(th) {
@@ -521,6 +569,7 @@ function draw() {
     const ents = [
       ...props,
       ...cats.map(c => ({ y: c.y, f: () => drawCat(ctx, ox + c.x * tile, oy + c.y * tile, tile, time, petting && petting.cat === c) })),
+      ...(friend ? [{ y: friend.y, f: () => drawFriend(ctx, ox + friend.x * tile, oy + friend.y * tile, tile, friend.runPhase, friend.moving, friend.dir, friend.fallen > 0) }] : []),
       ...dibblers.map(d => ({ y: d.y, f: () => drawDibbler(ctx, ox + d.x * tile, oy + d.y * tile, tile, time, d.color, d.sees) })),
       { y: player.y, f: () => drawTourist(ctx, ox + player.x * tile, oy + player.y * tile, tile, player.runPhase, false, player.moving, player.dir) },
     ].sort((a, b) => a.y - b.y);
@@ -581,6 +630,7 @@ window.addEventListener('keydown', e => {
   if (state === 'play' && (k === 'p' || k === 'Escape')) { state = 'pause'; return; }
   if (state === 'pause' && (k === 'p' || k === 'Escape')) { state = 'play'; return; }
   if (state !== 'play' && !e.repeat) { advance(); return; }
+  if (k === 'Control') { if (!e.repeat) kickFriend(); return; }
   keys.add(k);
 });
 window.addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));

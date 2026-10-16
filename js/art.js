@@ -17,7 +17,7 @@ function rect(ctx, x, y, w, h, fill, s) {
   ctx.strokeRect(x, y, w, h);
 }
 
-export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1) {
+export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1, shirt = '#ff6b9a') {
   const swing = moving ? Math.sin(phase) : 0;
   const bounce = moving ? -Math.abs(Math.cos(phase)) * s * 0.07 : 0;
   ctx.save();
@@ -36,7 +36,7 @@ export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1) {
   ctx.rotate(moving ? 0.12 : 0); // lean forward when running
   limb(-s * 0.26, -s * 0.2, s * 0.1, s * 0.24, -swing * 0.9, '#f2d2b3'); // back arm
   rect(ctx, -s * 0.24, s * 0.02, s * 0.48, s * 0.22, '#8a7a4a', s); // cargo shorts
-  rect(ctx, -s * 0.24, -s * 0.25, s * 0.48, s * 0.3, '#ff6b9a', s); // hawaii shirt
+  rect(ctx, -s * 0.24, -s * 0.25, s * 0.48, s * 0.3, shirt, s); // hawaii shirt
   limb(s * 0.26, -s * 0.2, s * 0.1, s * 0.24, swing * 0.9, '#f2d2b3'); // front arm
   ctx.fillStyle = '#ffe14d';
   for (const [dx, dy] of [[-0.12, -0.15], [0.08, -0.1], [0, -0.2], [-0.05, 0]]) {
@@ -122,4 +122,13 @@ export function drawBus(ctx, x, y, s) {
   ctx.font = `bold ${s * 0.15}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillText('BUS', x, y + s * 0.12);
+}
+
+export function drawFriend(ctx, x, y, s, phase, moving, dir, fallen) {
+  if (!fallen) { drawTourist(ctx, x, y, s, phase, false, moving, dir, '#4db8ff'); return; }
+  ctx.save();
+  ctx.translate(x, y + s * 0.2);
+  ctx.rotate(-Math.PI / 2 * (dir < 0 ? -1 : 1));
+  drawTourist(ctx, 0, 0, s, 0, false, false, 1, '#4db8ff');
+  ctx.restore();
 }
