@@ -8,7 +8,7 @@ const ctx = canvas.getContext('2d', { alpha: false });
 const START_CASH = 3;
 const PLAYER_SPEED = 3.0, SPRINT_SPEED = 5.2, PLAYER_R = 0.28, CATCH_DIST = 0.55;
 const STAMINA_MAX = 100, STAMINA_DRAIN = 40, STAMINA_REGEN = 22, STAMINA_REGEN_DELAY = 0.8, STAMINA_MIN_RESTART = 25;
-const PET_TIME = 2, CAT_COOLDOWN = 8;
+const PET_TIME = 2, CAT_COOLDOWN = 8, CAT_MEOW_DIST = 2.5, CAT_MEOW_COOLDOWN = 6;
 const ROBES = ['#8e5cd9', '#2fb67c', '#d9803a', '#c94a6b', '#4a7fd9'];
 const NAMES = ['Dave', 'Mo', 'Fatima', 'Raj', 'Lucia', 'Omar', 'Bea', 'Kofi', 'Yuki', 'Stan', 'Ines', 'Gus'];
 const LOST_BEFORE_CHAT = 4, GIVE_UP_TIME = 12, CHAT_COOLDOWN = 10, RALLY_TIME = 9, SHOUT_RADIUS = 6, START_GRACE = 3;
@@ -292,7 +292,7 @@ function hasLineOfSight(x0, y0, x1, y1) {
 }
 
 function shoutSpotted(spotter) {
-  sfx.alert();
+  sfx.shout(0.9 + Math.random() * 0.4);
   spotter.puffTiles = PUFF_TILES;
   popups.push({ x: spotter.x, y: spotter.y - 0.8, text: SHOUTS[Math.floor(Math.random() * SHOUTS.length)], t: 1.5 });
   const seen = tileOf(player);
@@ -426,6 +426,11 @@ function update(dt) {
 
   for (const c of cats) {
     c.cooldown = Math.max(0, c.cooldown - dt);
+    c.meowCd = Math.max(0, (c.meowCd || 0) - dt);
+    if (!petting && c.cooldown === 0 && c.meowCd === 0 && Math.hypot(c.x - player.x, c.y - player.y) < CAT_MEOW_DIST) {
+      c.meowCd = CAT_MEOW_COOLDOWN;
+      sfx.meow();
+    }
     if (petting && petting.cat === c) continue;
     if (!c.path.length) {
       c.wait -= dt;

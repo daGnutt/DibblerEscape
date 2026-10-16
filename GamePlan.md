@@ -15,11 +15,12 @@
 
 ### Dibblers
 * Dibblers have a view cone and can't see through walls; they notice you at close range regardless of facing.
-* Spotting you makes a dibbler shout, which alerts other dibblers within range.
+* Spotting you makes a dibbler shout (with an exclamation sound), which alerts other dibblers within range.
 * Chasers that lose you go to your last known position, then call a "group chat" that rallies everyone to that spot, and finally give up and roam again.
 * There is a short grace period at level start before they can see you.
 
 ### Traps and Features
+* Cats meow when you come near.
 * There are cats roaming the streets, if you come across one, you must stop to pet the cat (about 2 seconds). Each cat tips +1 cash once (up to the starting 3).
 * A friend follows you around. Dibblers that walk close to the friend get distracted ("Oh, hello there!") for a few seconds, then have a cooldown.
 * You can kick your friend: they fall over for a while, and the yelp creates an expanding noise ring that dibblers nearby hear and investigate (they head to where the friend fell).

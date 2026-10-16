@@ -39,6 +39,32 @@ export const sfx = {
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.1, i * 0.12)); },
   lose() { [400, 300, 220, 150].forEach((f, i) => tone(f, 0.25, 'sawtooth', 0.08, i * 0.2)); },
   tip() { [784, 988, 1175].forEach((f, i) => tone(f, 0.15, 'triangle', 0.09, i * 0.08)); },
+  meow() {
+    tone(700, 0.12, 'triangle', 0.07, 0, 350);
+    tone(1050, 0.28, 'triangle', 0.07, 0.12, -600);
+  },
+  // Dibbler exclamation: a rising-then-falling vowel-ish buzz ("Hey!") with a pitch variation per dibbler.
+  shout(p = 1) {
+    if (muted) return;
+    try {
+      ensureCtx();
+      const when = ctx.currentTime, dur = 0.28;
+      const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(160 * p, when);
+      o.frequency.linearRampToValueAtTime(260 * p, when + dur * 0.4);
+      o.frequency.linearRampToValueAtTime(190 * p, when + dur);
+      f.type = 'bandpass'; f.Q.value = 3;
+      f.frequency.setValueAtTime(700, when);
+      f.frequency.linearRampToValueAtTime(1500, when + dur * 0.6);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.linearRampToValueAtTime(0.16, when + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      o.connect(f).connect(g).connect(ctx.destination);
+      o.start(when);
+      o.stop(when + dur);
+    } catch { /* audio unavailable */ }
+  },
   step(vol = 0.12, pitch = 900) { step_(vol, pitch); },
 };
 
