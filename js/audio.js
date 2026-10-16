@@ -35,6 +35,7 @@ function tone(freq, dur, type, vol, delay = 0, slide = 0) {
 export const sfx = {
   coin() { tone(900, 0.08, 'square', 0.08); tone(1300, 0.15, 'square', 0.08, 0.08); },
   purr() { tone(90, 0.25, 'sawtooth', 0.06); tone(100, 0.25, 'sawtooth', 0.06, 0.25); },
+  yelp() { tone(900, 0.12, 'square', 0.07, 0, 500); tone(1200, 0.14, 'square', 0.07, 0.1, -600); },
   alert() { tone(300, 0.2, 'sawtooth', 0.05, 0, 200); },
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.1, i * 0.12)); },
   lose() { [400, 300, 220, 150].forEach((f, i) => tone(f, 0.25, 'sawtooth', 0.08, i * 0.2)); },

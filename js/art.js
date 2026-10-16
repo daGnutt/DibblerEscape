@@ -103,6 +103,31 @@ export function drawCat(ctx, x, y, s, t, petting) {
   ctx.restore();
 }
 
+export function drawCrab(ctx, x, y, s, t) {
+  ctx.save();
+  ctx.translate(x, y + s * 0.1);
+  ctx.strokeStyle = '#c0392b'; ctx.lineWidth = s * 0.03;
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      const w = Math.sin(t * 14 + i * 2) * s * 0.03;
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.1, (i - 1) * s * 0.05);
+      ctx.lineTo(side * s * 0.22, (i - 1) * s * 0.07 + w);
+      ctx.stroke();
+    }
+    const snap = Math.sin(t * 8 + side) * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(side * s * 0.1, -s * 0.05);
+    ctx.lineTo(side * s * 0.2, -s * 0.15);
+    ctx.stroke();
+    ellipse(ctx, side * s * 0.22, -s * 0.2, s * (0.07 + snap * 0.1), s * 0.06, '#e74c3c', s);
+  }
+  ellipse(ctx, 0, 0, s * 0.14, s * 0.1, '#e74c3c', s);
+  ellipse(ctx, -s * 0.05, -s * 0.12, s * 0.025, s * 0.025, '#fff', s);
+  ellipse(ctx, s * 0.05, -s * 0.12, s * 0.025, s * 0.025, '#fff', s);
+  ctx.restore();
+}
+
 export function drawHotel(ctx, x, y, s) {
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.8, '#fff1c9', s);
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.2, '#e0453a', s);

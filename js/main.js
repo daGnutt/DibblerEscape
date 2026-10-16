@@ -1,5 +1,5 @@
 import { rng, generateMaze, bfs } from './maze.js';
-import { drawTourist, drawFriend, drawDibbler, drawCat, drawHotel, drawBus } from './art.js';
+import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
@@ -17,7 +17,8 @@ const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, NOTICE_RADIUS = 1
 let state = 'title'; // title | play | pause | levelDone | gameOver
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
-let friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
+const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
+let crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
   'Hello my friend!',
@@ -186,6 +187,10 @@ function startLevel() {
   cats = Array.from({ length: nC }, () => {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, tipped: false, wait: rand() * 3 };
+  });
+  crabs = Array.from({ length: Math.min(1 + Math.floor(level / 2), 8) }, () => {
+    const [x, y] = pick();
+    return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, wait: rand() * 2 };
   });
   friend = nD >= 4 ? { x: player.x, y: player.y, path: [], repath: 0, dir: 1, runPhase: 0, moving: false, fallen: 0 } : null;
   layout();
@@ -398,7 +403,9 @@ function update(dt) {
       petting = null;
     }
   } else {
-    const [vx, vy] = inputVec();
+    const stunned = player.stun > 0;
+    if (stunned) player.stun -= dt;
+    const [vx, vy] = stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
     const wantsSprint = (keys.has('Shift') || sprintBtn.down) && (vx || vy);
     player.sprinting = !!wantsSprint && !player.exhausted && player.stamina > 0;
@@ -429,6 +436,27 @@ function update(dt) {
   const k = Math.min(1, dt * 12);
   player.vx = (player.vx || 0) + ((player.x - prevPX) / dt - (player.vx || 0)) * k;
   player.vy = (player.vy || 0) + ((player.y - prevPY) / dt - (player.vy || 0)) * k;
+
+  for (const c of crabs) {
+    c.cooldown = Math.max(0, c.cooldown - dt);
+    if (c.cooldown === 0 && !petting && !(player.stun > 0) && Math.hypot(c.x - player.x, c.y - player.y) < CRAB_PINCH_DIST) {
+      c.cooldown = CRAB_COOLDOWN;
+      player.stun = STUN_TIME;
+      c.path = [];
+      sfx.yelp();
+      popups.push({ x: player.x, y: player.y - 0.8, text: 'Ouch! Crab!', t: 1.2 });
+      makeNoise(player.x, player.y, YELP_NOISE_RADIUS);
+    }
+    if (!c.path.length) {
+      c.wait -= dt;
+      if (c.wait <= 0) {
+        const [cx, cy] = tileOf(c);
+        const near = openTiles().filter(([x, y]) => Math.abs(x - cx) + Math.abs(y - cy) <= 5);
+        c.path = bfs(maze.grid, [cx, cy], near[Math.floor(Math.random() * near.length)]) || [];
+        c.wait = 0.5 + Math.random() * 2;
+      }
+    } else followPath(c, CRAB_SPEED, dt);
+  }
 
   for (const c of cats) {
     c.cooldown = Math.max(0, c.cooldown - dt);
@@ -653,7 +681,7 @@ function drawTitle(th) {
   ctx.fillStyle = 'rgba(10,20,35,0.6)';
   ctx.beginPath(); ctx.roundRect(W / 2 - Math.min(W * 0.46, 380), py - fs * 1.4, Math.min(W * 0.92, 760), fs * 7.2, 14); ctx.fill();
   text('Get back to your hotel with cash left!', W / 2, py, fs);
-  text('Dodge the street merchants. Always pet the cats.', W / 2, py + fs * 1.5, fs);
+  text('Dodge the street merchants and crabs. Always pet the cats.', W / 2, py + fs * 1.5, fs);
   text('Arrows / WASD move · Shift sprint · P pause · M mute', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press any key or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
@@ -727,6 +755,10 @@ function draw() {
     }
     const ents = [
       ...props,
+      ...crabs.map(c => ({ y: c.y, f: () => {
+        const tf = Math.floor(time * 20) % 31;
+        blit(sprite(`crab${tf}`, 2, (g, s) => drawCrab(g, 0, 0, s, tf / 20)), ox + c.x * tile, oy + c.y * tile);
+      } })),
       ...cats.map(c => ({ y: c.y, f: () => {
         const pet = !!(petting && petting.cat === c);
         const tf = Math.floor(time * 20) % (pet ? 160 : 31);
