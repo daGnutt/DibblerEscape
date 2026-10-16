@@ -320,7 +320,21 @@ function groupChat(sender) {
 
 const FRIEND_DISTRACT_TIME = 3, FRIEND_DISTRACT_COOLDOWN = 6, FRIEND_NOTICE_DIST = 1.5;
 const FRIEND_FALL_TIME = 5, FRIEND_KICK_DIST = 1.3, KICK_NOISE_RADIUS = 3, KICK_NOISE_TIME = 0.8;
+const SPRINT_NOISE_RADIUS = 2.5;
 let noises = [];
+
+// Dibblers that aren't already on the hunt come to investigate a noise.
+function makeNoise(x, y, radius, retarget = true) {
+  noises.push({ x, y, t: 0, r: radius });
+  const heard = [Math.floor(x), Math.floor(y)];
+  for (const d of dibblers) {
+    if (d.sees || (d.chasing && !retarget) || d.distracted > 0 || Math.hypot(d.x - x, d.y - y) > radius) continue;
+    d.chasing = true;
+    d.lost = 0;
+    d.lastSeen = heard;
+    d.repath = 0;
+  }
+}
 
 function updateFriend(dt) {
   const f = friend;
@@ -345,15 +359,7 @@ function kickFriend() {
   friend.path = [];
   sfx.alert();
   popups.push({ x: friend.x, y: friend.y - 0.8, text: 'Ow! My shin!', t: 1.8 });
-  noises.push({ x: friend.x, y: friend.y, t: 0 });
-  const heard = tileOf(friend);
-  for (const d of dibblers) {
-    if (d.sees || d.distracted > 0 || Math.hypot(d.x - friend.x, d.y - friend.y) > KICK_NOISE_RADIUS) continue;
-    d.chasing = true;
-    d.lost = 0;
-    d.lastSeen = heard;
-    d.repath = 0;
-  }
+  makeNoise(friend.x, friend.y, KICK_NOISE_RADIUS);
 }
 
 // Aim where the tourist will be by the time this dibbler arrives, backing off to the nearest open tile.
@@ -401,7 +407,7 @@ function update(dt) {
       puffAcc += dt;
       stepAcc += dt;
       if (puffAcc > 0.04) { puffAcc = 0; emitPuff(player.x - player.dir * 0.15, player.y + 0.38, 'rgba(235,225,200,'); }
-      if (stepAcc > 0.16) { stepAcc = 0; sfx.step(0.14, 1000); }
+      if (stepAcc > 0.16) { stepAcc = 0; sfx.step(0.14, 1000); if (startGrace <= 0) makeNoise(player.x, player.y, SPRINT_NOISE_RADIUS, false); }
     }
     const bx = player.x, by = player.y;
     moveEntity(player, vx * spd * dt, vy * spd * dt, PLAYER_R);
@@ -752,7 +758,7 @@ function draw() {
       ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (1 - k)).toFixed(2)})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(ox + n.x * tile, oy + n.y * tile, tile * KICK_NOISE_RADIUS * k, 0, 7);
+      ctx.arc(ox + n.x * tile, oy + n.y * tile, tile * n.r * k, 0, 7);
       ctx.stroke();
     }
     if (th.overlay) {
