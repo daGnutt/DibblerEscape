@@ -566,11 +566,11 @@ function draw() {
       ctx.beginPath(); ctx.arc(joy.sx + joy.x * 50, joy.sy + joy.y * 50, 22, 0, 7); ctx.fill();
     }
   }
-  if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
   if (state === 'title') drawTitle(th);
   if (state === 'pause') overlay('Paused', ['Press P or tap to resume']);
   if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
   if (state === 'gameOver') overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press any key or tap to retry']);
+  if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
 }
 
 window.addEventListener('keydown', e => {
