@@ -784,6 +784,7 @@ function drawTitle(th) {
   text('Arrows / WASD move · Shift sprint · P pause · M mute', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
+  text('Designed by Gnutt, coded by CoPilot for GitHub', W / 2, H - 16, Math.min(14, W / 34), '#cfe9ff');
 }
 
 function drawDebug() {
