@@ -1,5 +1,5 @@
 import { rng, generateMaze, bfs } from './maze.js';
-import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawHotel, drawBus } from './art.js';
+import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawStall, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
 
@@ -20,7 +20,8 @@ let high = Number(localStorage.getItem('dibblerHigh') || 0);
 const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
 const PEEL_R = 0.4, PLAYER_SLIDE_TIME = 0.6, PLAYER_SLIDE_SPEED = 5, DIBBLER_SLIP_TIME = 2, DIBBLER_SLIDE_TIME = 0.5;
 const PEEL_DROP_MIN = 8, PEEL_DROP_RANGE = 12, MAX_PEELS = 14, PEEL_ARM_TIME = 2;
-let peels = [], crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
+const STALL_CHANCE = 0.3, MAX_STALLS = 6, STALL_HIT_DIST = 0.5, STALL_NOISE_RADIUS = 5;
+let stalls = [], peels = [], crabs = [], friend = null, maze, player, dibblers, cats, exits, petting, flashMsg, rally, chat, chatCooldown = 0, rallyId = 0, startGrace = 0;
 const SHOUTS = [
   'Hey, Icelandic man!',
   'Hello my friend!',
@@ -197,6 +198,24 @@ function startLevel() {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, tipped: false, wait: rand() * 3 };
   });
+  // Stalls sit just past the free end of a wall segment (a wall tile with exactly one wall neighbour).
+  const stallSpots = [];
+  const dirs4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let y = 1; y < maze.h - 1; y++) {
+    for (let x = 1; x < maze.w - 1; x++) {
+      if (!isWall(x, y)) continue;
+      const wallN = dirs4.filter(([dx, dy]) => isWall(x + dx, y + dy));
+      if (wallN.length !== 1) continue;
+      const [dx, dy] = wallN[0];
+      const sx = x - dx, sy = y - dy;
+      if (!isWall(sx, sy) && !exits.some(e => e.x === sx && e.y === sy) && (sx !== start[0] || sy !== start[1])) stallSpots.push([sx, sy]);
+    }
+  }
+  stalls = [];
+  while (stallSpots.length && stalls.length < MAX_STALLS) {
+    const [x, y] = stallSpots.splice(Math.floor(rand() * stallSpots.length), 1)[0];
+    if (rand() < STALL_CHANCE && !stalls.some(s => s.x === x + 0.5 && s.y === y + 0.5)) stalls.push({ x: x + 0.5, y: y + 0.5, toppled: false });
+  }
   peels = Array.from({ length: Math.min(2 + Math.floor(level / 2), 8) }, () => {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5 };
@@ -455,6 +474,16 @@ function update(dt) {
   const k = Math.min(1, dt * 12);
   player.vx = (player.vx || 0) + ((player.x - prevPX) / dt - (player.vx || 0)) * k;
   player.vy = (player.vy || 0) + ((player.y - prevPY) / dt - (player.vy || 0)) * k;
+
+  if (player.sprinting) {
+    for (const st of stalls) {
+      if (st.toppled || Math.hypot(st.x - player.x, st.y - player.y) > STALL_HIT_DIST) continue;
+      st.toppled = true;
+      sfx.crash();
+      popups.push({ x: st.x, y: st.y - 0.8, text: 'CRASH!', t: 1.4 });
+      makeNoise(st.x, st.y, STALL_NOISE_RADIUS);
+    }
+  }
 
   for (let i = peels.length - 1; i >= 0; i--) {
     const pl = peels[i];
@@ -818,6 +847,7 @@ function draw() {
     }
     const ents = [
       ...props,
+      ...stalls.map(st => ({ y: st.y, f: () => blit(sprite(`stall${st.toppled}`, 2, (g, s) => drawStall(g, 0, 0, s, st.toppled)), ox + st.x * tile, oy + st.y * tile) })),
       ...peels.map(p => ({ y: p.y - 0.4, f: () => {
         const gx = ox + p.x * tile, gy = oy + p.y * tile;
         blit(sprite('peel', 2, (g, s) => drawBanana(g, 0, 0, s)), gx, gy);

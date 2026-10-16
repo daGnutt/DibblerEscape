@@ -145,6 +145,24 @@ export function drawBanana(ctx, x, y, s) {
   ctx.restore();
 }
 
+export function drawStall(ctx, x, y, s, toppled) {
+  ctx.save();
+  ctx.translate(x, y + s * 0.1);
+  if (toppled) {
+    rect(ctx, -s * 0.3, s * 0.05, s * 0.4, s * 0.1, '#8a5a2b', s);
+    rect(ctx, s * 0.05, -s * 0.05, s * 0.28, s * 0.08, '#e0453a', s);
+    for (const [fx, fy, c] of [[-s * 0.25, s * 0.22, '#ff9f1c'], [s * 0.0, s * 0.25, '#e63946'], [s * 0.25, s * 0.2, '#9fe870'], [-s * 0.1, s * 0.3, '#ffd84d']]) ellipse(ctx, fx, fy, s * 0.05, s * 0.05, c, s);
+    ctx.restore();
+    return;
+  }
+  rect(ctx, -s * 0.3, s * 0.0, s * 0.6, s * 0.22, '#8a5a2b', s);
+  rect(ctx, -s * 0.28, -s * 0.3, s * 0.04, s * 0.3, '#6b4a2b', s);
+  rect(ctx, s * 0.24, -s * 0.3, s * 0.04, s * 0.3, '#6b4a2b', s);
+  for (let i = 0; i < 6; i++) rect(ctx, -s * 0.34 + i * s * 0.115, -s * 0.38, s * 0.115, s * 0.16, i % 2 ? '#fff' : '#e0453a', s);
+  for (const [fx, c] of [[-s * 0.18, '#ff9f1c'], [-s * 0.03, '#e63946'], [s * 0.12, '#9fe870'], [s * 0.22, '#ffd84d']]) ellipse(ctx, fx, -s * 0.02, s * 0.055, s * 0.055, c, s);
+  ctx.restore();
+}
+
 export function drawHotel(ctx, x, y, s) {
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.8, '#fff1c9', s);
   rect(ctx, x - s * 0.4, y - s * 0.4, s * 0.8, s * 0.2, '#e0453a', s);
