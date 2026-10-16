@@ -79,26 +79,48 @@ function computeVisibility() {
   }
 }
 
-// Leave a grey ghost where an actor was last seen, until that spot is looked at again.
+// Leave a grey ghost where an actor was last seen. Actors look alike, so a ghost only
+// goes away when you look at the ghost's own spot, not when you spot the actor elsewhere.
+const HEARING_RADIUS = 4.5;
+let ghosts = [], hearAcc = 0;
+
 function updateGhosts() {
   for (const e of [...dibblers, ...cats]) {
     if (tileSeen(e.x, e.y)) {
-      e.vis = true; e.ghost = null; e.lx = e.x; e.ly = e.y;
+      e.vis = true; e.lx = e.x; e.ly = e.y;
     } else if (e.vis) {
       e.vis = false;
-      e.ghost = { x: e.lx, y: e.ly, away: false };
+      ghosts.push({ x: e.lx, y: e.ly, away: false, cat: cats.includes(e) });
     }
-    const g = e.ghost;
-    if (!g) continue;
-    if (!tileSeen(g.x, g.y)) g.away = true;
-    else if (g.away) e.ghost = null;
+  }
+  ghosts = ghosts.filter(g => {
+    if (!tileSeen(g.x, g.y)) { g.away = true; return true; }
+    return !g.away;
+  });
+}
+
+function updateHearing(dt) {
+  for (const d of dibblers) {
+    const near = !d.vis && Math.hypot(d.x - player.x, d.y - player.y) < HEARING_RADIUS;
+    const moved = Math.hypot(d.x - (d.hx ?? d.x), d.y - (d.hy ?? d.y));
+    d.hx = d.x; d.hy = d.y;
+    if (!near || moved < 0.0005) continue;
+    d.stepAcc = (d.stepAcc || 0) + moved;
+    const running = d.sees || d.chasing;
+    if (d.stepAcc > (running ? 0.9 : 0.6)) {
+      d.stepAcc = 0;
+      popups.push({ x: d.x, y: d.y - 0.3, text: running ? '*thud* *thud* *thud*' : '*tap* *tap* *tap*', t: 0.9, heard: true });
+    }
+  }
+  for (const c of cats) {
+    c.meowT = (c.meowT ?? 2 + Math.random() * 6) - dt;
+    if (c.meowT > 0) continue;
+    c.meowT = 4 + Math.random() * 8;
+    if (!c.vis && Math.hypot(c.x - player.x, c.y - player.y) < HEARING_RADIUS) {
+      popups.push({ x: c.x, y: c.y - 0.3, text: '*meow*', t: 1.2, heard: true });
+    }
   }
 }
-const openTiles = () => {
-  const r = [];
-  for (let y = 0; y < maze.h; y++) for (let x = 0; x < maze.w; x++) if (!maze.grid[y][x]) r.push([x, y]);
-  return r;
-};
 
 function startLevel() {
   const rand = rng((Date.now() ^ (level * 7919)) >>> 0);
@@ -108,7 +130,7 @@ function startLevel() {
   exits = [{ type: 'hotel', x: maze.w - 2, y: maze.h - 2 }];
   if (level % 3 === 0) exits.push({ type: 'bus', x: maze.w - 2, y: 1 });
   player = { x: 1.5, y: 1.5, dir: 1, moving: false, runPhase: 0, stamina: STAMINA_MAX, sprinting: false, exhausted: false, regenWait: 0 };
-  petting = null; popups = []; particles = []; rally = null; chat = null; chatCooldown = 0; startGrace = START_GRACE;
+  petting = null; popups = []; ghosts = []; particles = []; rally = null; chat = null; chatCooldown = 0; startGrace = START_GRACE;
   const open = openTiles().filter(([x, y]) => {
     const p = bfs(maze.grid, start, [x, y]);
     return p && p.length >= 8 && !hasLineOfSight(player.x, player.y, x + 0.5, y + 0.5) && !exits.some(e => e.x === x && e.y === y);
@@ -380,6 +402,7 @@ function update(dt) {
   }
 
   updateGhosts();
+  updateHearing(dt);
   for (const e of exits) {
     if (Math.hypot(e.x + 0.5 - player.x, e.y + 0.5 - player.y) < 0.6) {
       const gained = cash * 100 + level * 50;
@@ -506,8 +529,12 @@ function draw() {
       ...props,
       ...cats.filter(c => c.vis).map(c => ({ y: c.y, f: () => drawCat(ctx, ox + c.x * tile, oy + c.y * tile, tile, time, petting && petting.cat === c) })),
       ...dibblers.filter(d => d.vis).map(d => ({ y: d.y, f: () => drawDibbler(ctx, ox + d.x * tile, oy + d.y * tile, tile, time, d.color, d.sees) })),
-      ...cats.filter(c => c.ghost).map(c => ({ y: c.ghost.y, f: () => { ctx.globalAlpha = 0.5; drawCat(ctx, ox + c.ghost.x * tile, oy + c.ghost.y * tile, tile, 0, false, '#9a9a9a'); ctx.globalAlpha = 1; } })),
-      ...dibblers.filter(d => d.ghost).map(d => ({ y: d.ghost.y, f: () => { ctx.globalAlpha = 0.5; drawDibbler(ctx, ox + d.ghost.x * tile, oy + d.ghost.y * tile, tile, 0, '#9a9a9a', false); ctx.globalAlpha = 1; } })),
+      ...ghosts.map(g => ({ y: g.y, f: () => {
+        ctx.globalAlpha = 0.5;
+        if (g.cat) drawCat(ctx, ox + g.x * tile, oy + g.y * tile, tile, 0, false, '#9a9a9a');
+        else drawDibbler(ctx, ox + g.x * tile, oy + g.y * tile, tile, 0, '#9a9a9a', false);
+        ctx.globalAlpha = 1;
+      } })),
       { y: player.y, f: () => drawTourist(ctx, ox + player.x * tile, oy + player.y * tile, tile, player.runPhase, false, player.moving, player.dir) },
     ].sort((a, b) => a.y - b.y);
     ents.forEach(e => e.f());
@@ -528,7 +555,14 @@ function draw() {
       ctx.fillStyle = g;
       ctx.fillRect(lx - tile * 3.5, ly - tile * 3.5, tile * 7, tile * 7);
     }
-    for (const p of popups) if (tileSeen(p.x, p.y)) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.setLineDash([tile * 0.15, tile * 0.2]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ox + player.x * tile, oy + player.y * tile, HEARING_RADIUS * tile, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (const p of popups) if (p.heard || tileSeen(p.x, p.y)) text(p.text, ox + p.x * tile, oy + (p.y - (1.5 - p.t) * 0.3) * tile, Math.max(14, tile * 0.5), '#fff');
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, 40);
