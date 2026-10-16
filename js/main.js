@@ -349,7 +349,11 @@ function makeNoise(x, y, radius, retarget = true) {
 function updateFriend(dt) {
   const f = friend;
   f.moving = false;
-  if (f.fallen > 0) { f.fallen -= dt; return; }
+  if (f.fallen > 0) {
+    f.fallen -= dt;
+    if (f.slideT > 0) { f.slideT -= dt; moveEntity(f, f.slideDir[0] * 4 * dt, f.slideDir[1] * 4 * dt, 0.28); }
+    return;
+  }
   f.repath -= dt;
   const dist = Math.hypot(player.x - f.x, player.y - f.y);
   if (dist > 1.4 && f.repath <= 0) {
@@ -452,6 +456,17 @@ function update(dt) {
       player.slide = PLAYER_SLIDE_TIME;
       sfx.yelp();
       popups.push({ x: player.x, y: player.y - 0.8, text: 'Whoa!', t: 1.2 });
+      peels.splice(i, 1);
+      continue;
+    }
+    if (friend && friend.fallen <= 0 && Math.hypot(pl.x - friend.x, pl.y - friend.y) < PEEL_R) {
+      const [tx, ty] = friend.path[0] || [];
+      const m = tx === undefined ? 0 : Math.hypot(tx + 0.5 - friend.x, ty + 0.5 - friend.y);
+      friend.slideDir = m > 0.01 ? [(tx + 0.5 - friend.x) / m, (ty + 0.5 - friend.y) / m] : [friend.dir, 0];
+      friend.slideT = DIBBLER_SLIDE_TIME;
+      friend.fallen = FRIEND_FALL_TIME;
+      friend.path = [];
+      popups.push({ x: friend.x, y: friend.y - 0.8, text: 'Whoa! My banana!', t: 1.8 });
       peels.splice(i, 1);
       continue;
     }
