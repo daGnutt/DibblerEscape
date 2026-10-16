@@ -105,6 +105,23 @@ function ensureLightSprite() {
   lightSprite = c;
 }
 
+// Procedural sprites are expensive to stroke every frame (esp. in Firefox), so bake animation frames once and blit them.
+const spriteCache = new Map();
+function sprite(key, size, drawFn) {
+  const full = `${key}|${tile}|${dpr}|${night}`;
+  let e = spriteCache.get(full);
+  if (e) return e;
+  const w = tile * size;
+  const [c, g] = makeLayer(w, w);
+  g.translate(w / 2, w / 2);
+  drawFn(g, tile);
+  e = { c, w };
+  spriteCache.set(full, e);
+  return e;
+}
+const blit = (e, x, y) => ctx.drawImage(e.c, x - e.w / 2, y - e.w / 2, e.w, e.w);
+const frameOf = (t, rate, n) => Math.floor(((t * rate) % 1 + 1) % 1 * n);
+
 function resize() {
   W = window.innerWidth; H = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -115,6 +132,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function layout() {
+  spriteCache.clear();
   const topPad = 44;
   tile = Math.floor(Math.min(W / maze.w, (H - topPad) / maze.h));
   ox = Math.floor((W - tile * maze.w) / 2);
@@ -215,12 +233,12 @@ function canSee(d) {
 
 function viewConePoints(d) {
   const pts = [[d.x, d.y]];
-  const rays = 18;
+  const rays = 14;
   for (let i = 0; i <= rays; i++) {
     const a = d.face - VIEW_FOV / 2 + (VIEW_FOV * i) / rays;
     const cx = Math.cos(a), cy = Math.sin(a);
     let r = 0;
-    while (r < VIEW_RANGE && !isWall(Math.floor(d.x + cx * (r + 0.1)), Math.floor(d.y + cy * (r + 0.1)))) r += 0.1;
+    while (r < VIEW_RANGE && !isWall(Math.floor(d.x + cx * (r + 0.15)), Math.floor(d.y + cy * (r + 0.15)))) r += 0.15;
     pts.push([d.x + cx * r, d.y + cy * r]);
   }
   return pts;
@@ -592,13 +610,20 @@ function draw() {
       for (let x = 0; x < maze.w; x++) {
         if (!maze.grid[y][x]) continue;
         const px = ox + x * tile, py = oy + y * tile;
-        if (isFountain(x, y)) props.push({ y: y + 0.9, f: () => drawFountain(ctx, th, px, py, tile, time, night) });
-        else if (hash(x + 3, y + 8) < 0.16) props.push({ y: y + 0.9, f: () => drawPalmTile(ctx, th, px, py, tile, time, hash(x, y)) });
+        const cx = px + tile / 2, cy = py + tile / 2;
+        if (isFountain(x, y)) {
+          const fr = frameOf(time * 1.3, 1, 16);
+          props.push({ y: y + 0.9, f: () => blit(sprite(`fountain${fr}`, 3, (g, s) => drawFountain(g, th, -s / 2, -s / 2, s, fr / 16 / 1.3, night)), cx, cy) });
+        } else if (hash(x + 3, y + 8) < 0.16) {
+          const seed = hash(x, y);
+          const fr = frameOf(time * 1.5 + seed * 10, 1 / (Math.PI * 2), 16);
+          props.push({ y: y + 0.9, f: () => blit(sprite(`palm${fr}`, 2, (g, s) => drawPalmTile(g, th, -s / 2, -s / 2, s, (fr / 16) * Math.PI * 2 / 1.5, 0)), cx, cy) });
+        }
       }
     }
     for (const e of exits) {
       const cx = ox + (e.x + 0.5) * tile, cy = oy + (e.y + 0.5) * tile;
-      (e.type === 'hotel' ? drawHotel : drawBus)(ctx, cx, cy, tile);
+      blit(sprite(e.type, 2, (g, s) => (e.type === 'hotel' ? drawHotel : drawBus)(g, 0, 0, s)), cx, cy);
     }
     for (const d of dibblers) {
       const pts = viewConePoints(d);
@@ -610,10 +635,23 @@ function draw() {
     }
     const ents = [
       ...props,
-      ...cats.map(c => ({ y: c.y, f: () => drawCat(ctx, ox + c.x * tile, oy + c.y * tile, tile, time, petting && petting.cat === c) })),
-      ...(friend ? [{ y: friend.y, f: () => drawFriend(ctx, ox + friend.x * tile, oy + friend.y * tile, tile, friend.runPhase, friend.moving, friend.dir, friend.fallen > 0) }] : []),
-      ...dibblers.map(d => ({ y: d.y, f: () => drawDibbler(ctx, ox + d.x * tile, oy + d.y * tile, tile, time, d.color, d.sees) })),
-      { y: player.y, f: () => drawTourist(ctx, ox + player.x * tile, oy + player.y * tile, tile, player.runPhase, false, player.moving, player.dir) },
+      ...cats.map(c => ({ y: c.y, f: () => {
+        const pet = !!(petting && petting.cat === c);
+        const tf = Math.floor(time * 20) % (pet ? 160 : 31);
+        blit(sprite(`cat${pet}${tf}`, 2, (g, s) => drawCat(g, 0, 0, s, tf / 20, pet)), ox + c.x * tile, oy + c.y * tile);
+      } })),
+      ...(friend ? [{ y: friend.y, f: () => {
+        const fr = friend.moving ? frameOf(friend.runPhase, 1 / (Math.PI * 2), 16) : 0, fl = friend.fallen > 0, dir = friend.dir < 0 ? -1 : 1;
+        blit(sprite(`friend${fr}${friend.moving}${fl}${dir}`, 2, (g, s) => drawFriend(g, 0, 0, s, (fr / 16) * Math.PI * 2, friend.moving, dir, fl)), ox + friend.x * tile, oy + friend.y * tile);
+      } }] : []),
+      ...dibblers.map(d => ({ y: d.y, f: () => {
+        const chasing = !!d.sees;
+        blit(sprite(`dib${d.color}${chasing}`, 2, (g, s) => drawDibbler(g, 0, 0, s, 0, d.color, chasing)), ox + d.x * tile + Math.sin(time * 8 + d.x) * tile * 0.03, oy + d.y * tile);
+      } })),
+      { y: player.y, f: () => {
+        const fr = player.moving ? frameOf(player.runPhase, 1 / (Math.PI * 2), 16) : 0, dir = player.dir < 0 ? -1 : 1;
+        blit(sprite(`tourist${fr}${player.moving}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, player.moving, dir)), ox + player.x * tile, oy + player.y * tile);
+      } },
     ].sort((a, b) => a.y - b.y);
     ents.forEach(e => e.f());
     for (const p of particles) {
