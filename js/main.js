@@ -55,7 +55,7 @@ const sprintBtnRect = () => ({ x: W - 70, y: H - 80, r: 44 });
 const MAX_DPR = 2;
 let dpr = 1;
 const showFps = new URLSearchParams(location.search).has('fps');
-let fpsText = '', fpsAcc = 0, fpsFrames = 0;
+let fpsText = '', fpsAcc = 0, fpsFrames = 0, fpsWorst = 0, fpsWork = 0;
 let staticLayer = null, staticKey = '', lightSprite = null, lightKey = '';
 
 function makeLayer(w, h) {
@@ -627,15 +627,21 @@ function updateMusic(dt) {
 
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const rawDt = (now - last) / 1000;
+  const dt = Math.min(0.05, rawDt);
   last = now;
-  if (showFps) {
-    fpsAcc += dt; fpsFrames++;
-    if (fpsAcc >= 0.5) { fpsText = `${Math.round(fpsFrames / fpsAcc)} fps  dpr ${dpr}`; fpsAcc = fpsFrames = 0; }
-  }
+  const t0 = performance.now();
   update(dt);
   updateMusic(dt);
   draw();
+  if (showFps) {
+    const raw = rawDt * 1000;
+    fpsAcc += raw; fpsFrames++; fpsWorst = Math.max(fpsWorst, raw); fpsWork = Math.max(fpsWork, performance.now() - t0);
+    if (fpsAcc >= 1000) {
+      fpsText = `${Math.round((fpsFrames * 1000) / fpsAcc)} fps  worst ${Math.round(fpsWorst)}ms  cpu ${fpsWork.toFixed(1)}ms  dpr ${dpr}`;
+      fpsAcc = fpsFrames = fpsWorst = fpsWork = 0;
+    }
+  }
   requestAnimationFrame(frame);
 }
 resize();
