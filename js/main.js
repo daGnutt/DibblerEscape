@@ -153,10 +153,22 @@ function startLevel() {
   const rand = rng((Date.now() ^ (level * 7919)) >>> 0);
   const cw = Math.min(5 + level, 14), ch = Math.min(4 + level, 9);
   maze = generateMaze(cw, ch, rand);
-  const start = [1, 1];
-  exits = [{ type: 'hotel', x: maze.w - 2, y: maze.h - 2 }];
-  if (level % 3 === 0) exits.push({ type: 'bus', x: maze.w - 2, y: 1 });
-  player = { x: 1.5, y: 1.5, dir: 1, moving: false, runPhase: 0, stamina: STAMINA_MAX, sprinting: false, exhausted: false, regenWait: 0 };
+  const all = openTiles();
+  const start = all[Math.floor(rand() * all.length)];
+  const dist = new Map(all.map(t => [t.join(), (bfs(maze.grid, start, t) || []).length]));
+  const far = Math.max(...dist.values()) * 0.6;
+  const pickExit = taken => {
+    const c = all.filter(t => dist.get(t.join()) >= far && !taken.some(o => Math.hypot(o[0] - t[0], o[1] - t[1]) < 4));
+    const pool = c.length ? c : all.filter(t => dist.get(t.join()) > 0);
+    return pool[Math.floor(rand() * pool.length)];
+  };
+  const hotel = pickExit([]);
+  exits = [{ type: 'hotel', x: hotel[0], y: hotel[1] }];
+  if (level % 3 === 0) {
+    const bus = pickExit([hotel]);
+    exits.push({ type: 'bus', x: bus[0], y: bus[1] });
+  }
+  player = { x: start[0] + 0.5, y: start[1] + 0.5, dir: 1, moving: false, runPhase: 0, stamina: STAMINA_MAX, sprinting: false, exhausted: false, regenWait: 0 };
   petting = null; popups = []; noises = []; particles = []; rally = null; chat = null; chatCooldown = 0; startGrace = START_GRACE;
   const open = openTiles().filter(([x, y]) => {
     const p = bfs(maze.grid, start, [x, y]);
