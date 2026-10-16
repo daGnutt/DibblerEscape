@@ -157,7 +157,7 @@ function startLevel() {
   exits = [{ type: 'hotel', x: maze.w - 2, y: maze.h - 2 }];
   if (level % 3 === 0) exits.push({ type: 'bus', x: maze.w - 2, y: 1 });
   player = { x: 1.5, y: 1.5, dir: 1, moving: false, runPhase: 0, stamina: STAMINA_MAX, sprinting: false, exhausted: false, regenWait: 0 };
-  petting = null; popups = []; particles = []; rally = null; chat = null; chatCooldown = 0; startGrace = START_GRACE;
+  petting = null; popups = []; noises = []; particles = []; rally = null; chat = null; chatCooldown = 0; startGrace = START_GRACE;
   const open = openTiles().filter(([x, y]) => {
     const p = bfs(maze.grid, start, [x, y]);
     return p && p.length >= 8 && !hasLineOfSight(player.x, player.y, x + 0.5, y + 0.5) && !exits.some(e => e.x === x && e.y === y);
@@ -200,9 +200,30 @@ function collides(x, y, r) {
   return false;
 }
 
+// When blocked head-on by a corner, slide sideways toward the nearest offset that lets the move through.
+function nudgeAround(e, dx, dy, r) {
+  const step = Math.hypot(dx, dy), horiz = dx !== 0;
+  for (let o = 0.04; o <= 0.5; o += 0.04) {
+    const free = s => horiz
+      ? !collides(e.x + dx, e.y + s * o, r) && !collides(e.x, e.y + s * o, r)
+      : !collides(e.x + s * o, e.y + dy, r) && !collides(e.x + s * o, e.y, r);
+    const pos = free(1), neg = free(-1);
+    if (!pos && !neg) continue;
+    const s = pos && neg ? 0 : pos ? 1 : -1;
+    const side = s || ((horiz ? e.y : e.x) % 1 < 0.5 ? -1 : 1);
+    const m = Math.min(o, step) * side;
+    if (horiz) { if (!collides(e.x, e.y + m, r)) e.y += m; }
+    else if (!collides(e.x + m, e.y, r)) e.x += m;
+    return;
+  }
+}
+
 function moveEntity(e, dx, dy, r) {
-  if (!collides(e.x + dx, e.y, r)) e.x += dx;
+  const blockedX = dx && collides(e.x + dx, e.y, r), blockedY = dy && collides(e.x, e.y + dy, r);
+  if (!blockedX) e.x += dx;
   if (!collides(e.x, e.y + dy, r)) e.y += dy;
+  else if (blockedY && !dx) nudgeAround(e, 0, dy, r);
+  if (blockedX && !dy) nudgeAround(e, dx, 0, r);
 }
 
 function followPath(e, speed, dt) {
@@ -284,7 +305,8 @@ function groupChat(sender) {
 }
 
 const FRIEND_DISTRACT_TIME = 3, FRIEND_DISTRACT_COOLDOWN = 6, FRIEND_NOTICE_DIST = 1.5;
-const FRIEND_FALL_TIME = 5, FRIEND_KICK_DIST = 1.3;
+const FRIEND_FALL_TIME = 5, FRIEND_KICK_DIST = 1.3, KICK_NOISE_RADIUS = 3, KICK_NOISE_TIME = 0.8;
+let noises = [];
 
 function updateFriend(dt) {
   const f = friend;
@@ -309,6 +331,15 @@ function kickFriend() {
   friend.path = [];
   sfx.alert();
   popups.push({ x: friend.x, y: friend.y - 0.8, text: 'Ow! My shin!', t: 1.8 });
+  noises.push({ x: friend.x, y: friend.y, t: 0 });
+  const heard = tileOf(friend);
+  for (const d of dibblers) {
+    if (d.sees || d.distracted > 0 || Math.hypot(d.x - friend.x, d.y - friend.y) > KICK_NOISE_RADIUS) continue;
+    d.chasing = true;
+    d.lost = 0;
+    d.lastSeen = heard;
+    d.repath = 0;
+  }
 }
 
 // Aim where the tourist will be by the time this dibbler arrives, backing off to the nearest open tile.
@@ -327,6 +358,7 @@ function update(dt) {
   time += dt;
   if (flashMsg) { flashMsg.t -= dt; if (flashMsg.t <= 0) flashMsg = null; }
   popups = popups.filter(p => (p.t -= dt) > 0);
+  noises = noises.filter(n => (n.t += dt) < KICK_NOISE_TIME);
   for (const p of particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; }
   particles = particles.filter(p => p.t < p.life);
   if (state !== 'play') return;
@@ -666,6 +698,14 @@ function draw() {
       ctx.beginPath();
       ctx.arc(ox + p.x * tile, oy + p.y * tile, tile * p.r * (1 + k * 1.8), 0, 7);
       ctx.fill();
+    }
+    for (const n of noises) {
+      const k = n.t / KICK_NOISE_TIME;
+      ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (1 - k)).toFixed(2)})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(ox + n.x * tile, oy + n.y * tile, tile * KICK_NOISE_RADIUS * k, 0, 7);
+      ctx.stroke();
     }
     if (th.overlay) {
       ctx.fillStyle = th.overlay;
