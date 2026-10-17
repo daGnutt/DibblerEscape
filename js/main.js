@@ -356,11 +356,11 @@ const SPRINT_NOISE_RADIUS = 2.5;
 let noises = [];
 
 // Dibblers that aren't already on the hunt come to investigate a noise.
-function makeNoise(x, y, radius, retarget = true) {
+function makeNoise(x, y, radius, retarget = true, except = null) {
   noises.push({ x, y, t: 0, r: radius });
   const heard = [Math.floor(x), Math.floor(y)];
   for (const d of dibblers) {
-    if (d.sees || (d.chasing && !retarget) || d.distracted > 0 || Math.hypot(d.x - x, d.y - y) > radius) continue;
+    if (d === except || d.sees || (d.chasing && !retarget) || d.distracted > 0 || Math.hypot(d.x - x, d.y - y) > radius) continue;
     d.chasing = true;
     d.lost = 0;
     d.lastSeen = heard;
@@ -371,6 +371,7 @@ function makeNoise(x, y, radius, retarget = true) {
 function updateFriend(dt) {
   const f = friend;
   f.moving = false;
+  if (f.stun > 0) { f.stun -= dt; return; }
   if (f.fallen > 0) {
     f.fallen -= dt;
     if (f.slideT > 0) { f.slideT -= dt; moveEntity(f, f.slideDir[0] * 4 * dt, f.slideDir[1] * 4 * dt, 0.28); }
@@ -534,6 +535,19 @@ function update(dt) {
       popups.push({ x: player.x, y: player.y - 0.8, text: 'Ouch! Crab!', t: 1.2 });
       makeNoise(player.x, player.y, YELP_NOISE_RADIUS);
     }
+    if (c.cooldown === 0) {
+      const victim = [...dibblers.filter(d => !(d.slip > 0) && !(d.stun > 0)), ...(friend && friend.fallen <= 0 && !(friend.stun > 0) ? [friend] : [])]
+        .find(v => Math.hypot(c.x - v.x, c.y - v.y) < CRAB_PINCH_DIST);
+      if (victim) {
+        c.cooldown = CRAB_COOLDOWN;
+        c.path = [];
+        victim.stun = STUN_TIME;
+        if (victim.path) victim.path = [];
+        sfx.yelp();
+        popups.push({ x: victim.x, y: victim.y - 0.8, text: victim === friend ? 'Ouch! Crab!' : 'Yeow!', t: 1.2 });
+        makeNoise(victim.x, victim.y, YELP_NOISE_RADIUS, false, victim);
+      }
+    }
     if (!c.path.length) {
       c.wait -= dt;
       if (c.wait <= 0) {
@@ -640,6 +654,8 @@ function update(dt) {
       d.slip -= dt;
       if (DIBBLER_SLIP_TIME - d.slip < DIBBLER_SLIDE_TIME) moveEntity(d, d.slipDir[0] * 4 * dt, d.slipDir[1] * 4 * dt, 0.28);
       d.repath = 0;
+    } else if (d.stun > 0) {
+      d.stun -= dt;
     } else if (distracted) {
       d.faceTarget = Math.atan2(friend.y - d.y, friend.x - d.x);
     } else if (d.sees && (dist < 1.2 || !d.path.length)) {
@@ -662,7 +678,7 @@ function update(dt) {
       if (moved > 0 && d.puffAcc > 0.05) { d.puffAcc = 0; emitPuff(d.x, d.y + 0.35, 'rgba(210,210,210,'); }
     }
     turnToward(d, dt);
-    if (dist < CATCH_DIST && !(d.slip > 0)) {
+    if (dist < CATCH_DIST && !(d.slip > 0) && !(d.stun > 0)) {
       cash--;
       sfx.coin();
       popups.push({ x: player.x, y: player.y - 0.8, text: 'You throw money! -1 cash', t: 1.5 });
