@@ -2,6 +2,7 @@ import { rng, generateMaze, bfs } from './maze.js';
 import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawStall, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
+import { LIST_SIZE, promptName, getGlobal, getLocal, globalStatus, fetchGlobal, submitGlobal, qualifiesGlobal, qualifiesLocal, addLocal } from './scores.js';
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d', { alpha: false });
@@ -15,7 +16,9 @@ const LOST_BEFORE_CHAT = 4, GIVE_UP_TIME = 12, CHAT_COOLDOWN = 10, RALLY_TIME = 
 const CONE_DRAW_LEN = 2.5;
 const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, TURN_SPEED = 6, ALERT_TURN_SPEED = 18, PUFF_TILES = 4;
 
-let state = 'title'; // title | play | pause | levelDone | gameOver
+let state = 'title'; // title | play | pause | levelDone | nameEntry | gameOver
+let runTime = 0;
+fetchGlobal();
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
 let high = Number(localStorage.getItem('dibblerHigh') || 0);
 const CRAB_SPEED = 1.6, CRAB_PINCH_DIST = 0.5, CRAB_COOLDOWN = 2, STUN_TIME = 0.7, YELP_NOISE_RADIUS = 4;
@@ -426,6 +429,7 @@ function update(dt) {
   for (const p of particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; }
   particles = particles.filter(p => p.t < p.life);
   if (state !== 'play') return;
+  runTime += dt;
 
   const prevPX = player.x, prevPY = player.y;
   if (petting) {
@@ -711,9 +715,20 @@ function endGame() {
   state = 'gameOver';
   sfx.lose();
   if (totalScore > high) { high = totalScore; localStorage.setItem('dibblerHigh', String(high)); }
+  const toGlobal = qualifiesGlobal(totalScore), toLocal = qualifiesLocal(totalScore);
+  if (!toGlobal && !toLocal) return;
+  const points = totalScore, lvl = level, runtime = Math.round(runTime);
+  state = 'nameEntry';
+  promptName(name => {
+    if (name) {
+      if (toLocal) addLocal(name, points, lvl);
+      if (toGlobal) submitGlobal(name, points, lvl, runtime);
+    }
+    state = 'gameOver';
+  });
 }
 
-function startGame() { level = 1; totalScore = 0; cash = START_CASH; startLevel(); }
+function startGame() { runTime = 0; level = 1; totalScore = 0; cash = START_CASH; startLevel(); }
 
 function advance() {
   if (state === 'title' || state === 'gameOver') startGame();
@@ -753,6 +768,25 @@ function text(str, x, y, size, color = '#fff', align = 'center') {
   ctx.drawImage(e.c, left - e.pad, y - e.base, e.w, e.h);
 }
 
+
+function drawScoreboards(yTop) {
+  const colW = Math.min(W * 0.46, 270);
+  const rowH = Math.min(20, Math.max(12, (H - yTop - 50) / (LIST_SIZE + 1)));
+  const rows = Math.max(0, Math.min(LIST_SIZE, Math.floor((H - yTop - 30) / rowH) - 1));
+  const size = rowH * 0.78;
+  const col = (title, list, cx, empty) => {
+    text(title, cx, yTop, size * 1.15, '#ffd84d');
+    if (!list || !list.length) { text(empty, cx, yTop + rowH, size, '#cfe9ff'); return; }
+    list.slice(0, rows).forEach((r, i) => {
+      const y = yTop + (i + 1) * rowH;
+      text(`${i + 1}. ${r.name}`, cx - colW / 2, y, size, '#fff', 'left');
+      text(String(r.points), cx + colW / 2, y, size, '#9fe870', 'right');
+    });
+  };
+  const gs = globalStatus();
+  col('Global top', getGlobal(), W / 2 - colW / 2 - 12, gs === 'loading' ? 'Loading…' : gs === 'offline' ? 'Offline' : 'No scores yet');
+  col('Local top', getLocal(), W / 2 + colW / 2 + 12, 'No scores yet');
+}
 
 function overlay(title, lines) {
   ctx.fillStyle = 'rgba(10,20,35,0.8)';
@@ -806,6 +840,7 @@ function drawTitle(th) {
   text('Arrows / WASD move · Shift sprint · P pause · M mute', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
+  if (W > 2 * 270 + 60) drawScoreboards(py + fs * 7.8);
   text('Designed by Gnutt, coded by CoPilot for GitHub', W / 2, H - 16, Math.min(14, W / 34), '#cfe9ff');
 }
 
@@ -976,11 +1011,16 @@ function draw() {
   if (state === 'title') drawTitle(th);
   if (state === 'pause') overlay('Paused', ['Press P or tap to resume']);
   if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
-  if (state === 'gameOver') overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press SPACE or tap to retry']);
+  if (state === 'nameEntry') overlay('Out of cash!', [`Final score: ${totalScore}`, 'High score! Enter your name:']);
+  if (state === 'gameOver') {
+    overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press SPACE or tap to retry']);
+    if (W > 2 * 270 + 60) drawScoreboards(H / 2 + 100);
+  }
   if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
 }
 
 window.addEventListener('keydown', e => {
+  if (e.target instanceof HTMLInputElement) return;
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k.startsWith('Arrow') || k === ' ') e.preventDefault();
   if (k === 'm') { toggleMute(); return; }
@@ -995,7 +1035,7 @@ window.addEventListener('keydown', e => {
   if (k === 'Control') { if (!e.repeat) kickFriend(); return; }
   keys.add(k);
 });
-window.addEventListener('keyup', e => keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+window.addEventListener('keyup', e => e.target instanceof HTMLInputElement || keys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
 window.addEventListener('blur', () => { keys.clear(); if (state === 'play') state = 'pause'; });
 
 canvas.addEventListener('pointerdown', e => {
