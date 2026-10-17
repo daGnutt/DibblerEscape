@@ -449,7 +449,10 @@ function update(dt) {
     const stunned = player.stun > 0;
     if (stunned) player.stun -= dt;
     const sliding = player.slide > 0;
-    if (sliding) player.slide -= dt;
+    if (sliding) {
+      player.slide -= dt;
+      if (player.slide <= 0) player.stun = PLAYER_SLIDE_TIME; // lie still as long as the glide lasted
+    } else if (player.fallen && !(player.stun > 0)) player.fallen = false;
     const [vx, vy] = sliding ? player.slideDir : stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
     const wantsSprint = !sliding && (keys.has('Shift') || sprintBtn.down) && (vx || vy);
@@ -505,6 +508,7 @@ function update(dt) {
       const m = Math.hypot(player.vx || 0, player.vy || 0);
       player.slideDir = m > 0.1 ? [player.vx / m, player.vy / m] : [player.dir, 0];
       player.slide = PLAYER_SLIDE_TIME;
+      player.fallen = true;
       sfx.yelp();
       popups.push({ x: player.x, y: player.y - 0.8, text: 'Whoa!', t: 1.2 });
       peels.splice(i, 1);
@@ -947,7 +951,7 @@ function draw() {
       { y: player.y, f: () => {
         const fr = player.moving ? frameOf(player.runPhase, 1 / (Math.PI * 2), 16) : 0, dir = player.dir < 0 ? -1 : 1;
         const e = sprite(`tourist${fr}${player.moving}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, player.moving, dir));
-        if (player.slide > 0) blitLying(e, ox + player.x * tile, oy + player.y * tile, player.slideDir[0]);
+        if (player.fallen) blitLying(e, ox + player.x * tile, oy + player.y * tile, player.slideDir[0]);
         else blit(e, ox + player.x * tile, oy + player.y * tile);
       } },
     ].sort((a, b) => a.y - b.y);
