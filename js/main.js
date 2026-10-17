@@ -2,7 +2,7 @@ import { rng, generateMaze, bfs } from './maze.js';
 import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawStall, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
-import { dibblerClosingIn, regenStamina } from './stamina.js';
+import { updateAutoSprint, regenStamina } from './stamina.js';
 import { LIST_SIZE, promptName, getGlobal, getLocal, globalStatus, fetchGlobal, submitGlobal, qualifiesGlobal, qualifiesLocal, addLocal } from './scores.js';
 
 const canvas = document.getElementById('c');
@@ -484,7 +484,8 @@ function update(dt) {
     } else if (player.fallen && !(player.stun > 0)) player.fallen = false;
     const [vx, vy] = sliding ? player.slideDir : stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
-    const wantsSprint = !sliding && (vx || vy) && (keys.has('Shift') || sprintBtn.down || dibblerClosingIn(dibblers, player));
+    player.autoSprint = updateAutoSprint(!!player.autoSprint, dibblers, player);
+    const wantsSprint = !sliding && (vx || vy) && (keys.has('Shift') || sprintBtn.down || player.autoSprint);
     player.sprinting = !!wantsSprint && !player.exhausted && player.stamina > 0;
     const spd = sliding ? PLAYER_SLIDE_SPEED : player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
     if (player.sprinting && player.moving) {
@@ -877,7 +878,6 @@ function drawTitle(th) {
   ctx.beginPath(); ctx.roundRect(W / 2 - Math.min(W * 0.46, 380), py - fs * 1.4, Math.min(W * 0.92, 760), fs * 7.2, 14); ctx.fill();
   text('Get back to your hotel with cash left!', W / 2, py, fs);
   text('Dodge the street merchants and crabs. Always pet the cats.', W / 2, py + fs * 1.5, fs);
-  text('You sprint automatically when a dibbler closes in. Stamina only recovers standing still.', W / 2, py + fs * 2.2, fs * 0.8, '#cfe9ff');
   text('Arrows / WASD move · Shift sprint · Ctrl kick · P pause · M sound · N music', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');

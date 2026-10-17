@@ -1,9 +1,11 @@
-export const AUTO_SPRINT_DIST = 3.5;
+export const AUTO_SPRINT_START_DIST = 1;
+export const AUTO_SPRINT_STOP_DIST = 3.5;
 
-// A dibbler that has eyes on the tourist (or is chasing) and is near enough to be a threat.
-export function dibblerClosingIn(dibblers, player, dist = AUTO_SPRINT_DIST) {
-  return dibblers.some(d => (d.sees || d.chasing) && !(d.slip > 0) && !(d.stun > 0) && !(d.distracted > 0)
-    && Math.hypot(d.x - player.x, d.y - player.y) < dist);
+// Hysteresis: start when a hunting dibbler is within START, keep going until every dibbler is at least STOP away.
+export function updateAutoSprint(active, dibblers, player, start = AUTO_SPRINT_START_DIST, stop = AUTO_SPRINT_STOP_DIST) {
+  const dist = d => Math.hypot(d.x - player.x, d.y - player.y);
+  if (active) return dibblers.some(d => dist(d) < stop);
+  return dibblers.some(d => (d.sees || d.chasing) && !(d.slip > 0) && !(d.stun > 0) && !(d.distracted > 0) && dist(d) < start);
 }
 
 // Stamina only comes back while standing still (and after the post-sprint delay).

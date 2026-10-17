@@ -22,7 +22,7 @@ No build step, no dependencies: plain HTML5 canvas and ES modules.
 | Mute all sound | M | 🔊 button (top right) |
 | Mute music only | N | 🎵 button (top right) |
 
-You sprint automatically when a dibbler that has spotted you closes in (Shift / the Sprint button forces it). Sprinting drains stamina; stamina only recovers while you stand still (including recovering from a banana peel or petting a cat), never while moving. Once exhausted you must recover before sprinting again.
+Sprinting drains stamina; once exhausted you must recover before sprinting again.
 
 ### Things to know
 
