@@ -52,7 +52,6 @@ let tile = 32, ox = 0, oy = 0, W = 0, H = 0;
 
 const keys = new Set();
 const joy = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0 };
-const sprintBtn = { down: false, id: null };
 let touchSeen = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 const settingsBtns = () => [
   { id: 'mute', label: muted ? '🔇' : '🔊', off: muted },
@@ -86,7 +85,6 @@ const DAY_SMOKE = 'rgba(85,75,70,';
 const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 let night = !!(darkQuery && darkQuery.matches);
 if (darkQuery) darkQuery.addEventListener('change', e => { night = e.matches; });
-const sprintBtnRect = () => ({ x: W - 70, y: H - 80, r: 44 });
 
 // Firefox's software-heavy canvas 2D is slow at high pixel counts, so render it at a lower resolution (override with ?dpr=).
 const isFirefox = /Firefox\//.test(navigator.userAgent);
@@ -485,7 +483,7 @@ function update(dt) {
     const [vx, vy] = sliding ? player.slideDir : stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
     player.autoSprint = updateAutoSprint(!!player.autoSprint, dibblers, player);
-    const wantsSprint = !sliding && (vx || vy) && (keys.has('Shift') || sprintBtn.down || player.autoSprint);
+    const wantsSprint = !sliding && (vx || vy) && player.autoSprint;
     player.sprinting = !!wantsSprint && !player.exhausted && player.stamina > 0;
     const spd = sliding ? PLAYER_SLIDE_SPEED : player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
     if (player.sprinting && player.moving) {
@@ -843,15 +841,12 @@ function keycap(label, x, y) {
 function drawKeyHints() {
   const y = H - 40;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.roundRect(8, y - 6, friend ? 640 : 530, 38, 8); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(8, y - 6, friend ? 540 : 480, 38, 8); ctx.fill();
   let x = 14;
   for (const k of ['←', '↑', '↓', '→']) x += keycap(k, x, y) + 4;
   text('Move', x + 22, y + 20, 15);
   x += 62;
-  x += keycap('Shift', x, y) + 6;
-  text('Sprint', x + 28, y + 20, 15);
   if (friend) {
-    x += 74;
     x += keycap('Ctrl', x, y) + 6;
     text('Kick', x + 22, y + 20, 15);
     x += 50;
@@ -878,7 +873,7 @@ function drawTitle(th) {
   ctx.beginPath(); ctx.roundRect(W / 2 - Math.min(W * 0.46, 380), py - fs * 1.4, Math.min(W * 0.92, 760), fs * 7.2, 14); ctx.fill();
   text('Get back to your hotel with cash left!', W / 2, py, fs);
   text('Dodge the street merchants and crabs. Always pet the cats.', W / 2, py + fs * 1.5, fs);
-  text('Arrows / WASD move · Shift sprint · Ctrl kick · P pause · M sound · N music', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
+  text('Arrows / WASD move · Ctrl kick · P pause · M sound · N music', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
   if (W > 2 * 270 + 60) drawScoreboards(py + fs * 7.8);
@@ -1030,12 +1025,9 @@ function draw() {
     ctx.fillRect(10, 46, bw + 4, 14);
     ctx.fillStyle = player.exhausted ? '#e0453a' : player.stamina < 35 ? '#ffb02e' : '#4fd36b';
     ctx.fillRect(12, 48, (bw * player.stamina) / STAMINA_MAX, 10);
+    text(player.exhausted ? 'Exhausted!' : 'Stamina', bw + 22, 59, 13, player.exhausted ? '#e0453a' : '#fff', 'left');
     if (!touchSeen) drawKeyHints();
     if (touchSeen) {
-      const b = sprintBtnRect();
-      ctx.fillStyle = sprintBtn.down ? 'rgba(255,216,77,0.8)' : 'rgba(255,255,255,0.35)';
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
-      text('SPRINT', b.x, b.y + 6, 16);
       if (friend) {
         const k = kickBtnRect();
         ctx.fillStyle = friend.fallen > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(77,184,255,0.5)';
@@ -1090,11 +1082,6 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   if (state !== 'play') { advance(); return; }
-  const b = sprintBtnRect();
-  if (touchSeen && Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.r) {
-    sprintBtn.down = true; sprintBtn.id = e.pointerId;
-    return;
-  }
   const kb = kickBtnRect();
   if (touchSeen && friend && Math.hypot(e.clientX - kb.x, e.clientY - kb.y) < kb.r) {
     kickFriend();
@@ -1111,7 +1098,6 @@ canvas.addEventListener('pointermove', e => {
 });
 const endPointer = e => {
   if (e.pointerId === joy.id) { joy.active = false; joy.x = joy.y = 0; }
-  if (e.pointerId === sprintBtn.id) { sprintBtn.down = false; sprintBtn.id = null; }
 };
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
