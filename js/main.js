@@ -847,8 +847,13 @@ function draw() {
       ctx.moveTo(ox + d.x * tile, oy + d.y * tile);
       ctx.arc(ox + d.x * tile, oy + d.y * tile, tile * CONE_DRAW_LEN, d.face - VIEW_FOV / 2, d.face + VIEW_FOV / 2);
       ctx.closePath();
-      ctx.fillStyle = d.sees ? 'rgba(255,60,60,0.3)' : night ? 'rgba(255,240,120,0.28)' : 'rgba(255,200,40,0.2)';
+      ctx.fillStyle = d.sees ? 'rgba(255,60,60,0.4)' : night ? 'rgba(255,240,120,0.28)' : 'rgba(255,190,0,0.4)';
       ctx.fill();
+      if (!night) {
+        ctx.strokeStyle = d.sees ? 'rgba(200,0,0,0.7)' : 'rgba(190,120,0,0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
     const ents = [
       ...props,
