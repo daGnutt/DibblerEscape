@@ -985,8 +985,9 @@ function draw() {
         else blit(e, ox + d.x * tile + Math.sin(time * 8 + d.x) * tile * 0.03, oy + d.y * tile);
       } })),
       { y: player.y, f: () => {
-        const fr = player.moving ? frameOf(player.runPhase, 1 / (Math.PI * 2), 16) : 0, dir = player.dir < 0 ? -1 : 1;
-        const e = sprite(`tourist${fr}${player.moving}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, player.moving, dir));
+        const mv = player.moving && !player.fallen; // no leg swinging while lying on the ground
+        const fr = mv ? frameOf(player.runPhase, 1 / (Math.PI * 2), 16) : 0, dir = player.dir < 0 ? -1 : 1;
+        const e = sprite(`tourist${fr}${mv}${dir}`, 2, (g, s) => drawTourist(g, 0, 0, s, (fr / 16) * Math.PI * 2, false, mv, dir));
         if (player.fallen) blitLying(e, ox + player.x * tile, oy + player.y * tile, player.slideDir[0]);
         else blit(e, ox + player.x * tile, oy + player.y * tile);
       } },
