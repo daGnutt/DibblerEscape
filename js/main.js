@@ -12,6 +12,7 @@ const PET_TIME = 2, CAT_COOLDOWN = 8, CAT_MEOW_DIST = 2.5, CAT_MEOW_COOLDOWN = 6
 const ROBES = ['#8e5cd9', '#2fb67c', '#d9803a', '#c94a6b', '#4a7fd9'];
 const NAMES = ['Dave', 'Mo', 'Fatima', 'Raj', 'Lucia', 'Omar', 'Bea', 'Kofi', 'Yuki', 'Stan', 'Ines', 'Gus'];
 const LOST_BEFORE_CHAT = 4, GIVE_UP_TIME = 12, CHAT_COOLDOWN = 10, RALLY_TIME = 9, SHOUT_RADIUS = 6, START_GRACE = 3;
+const CONE_DRAW_LEN = 2.5;
 const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, TURN_SPEED = 6, ALERT_TURN_SPEED = 18, PUFF_TILES = 4;
 
 let state = 'title'; // title | play | pause | levelDone | gameOver
@@ -857,9 +858,10 @@ function draw() {
       blit(sprite(e.type, 2, (g, s) => (e.type === 'hotel' ? drawHotel : drawBus)(g, 0, 0, s)), cx, cy);
     }
     for (const d of dibblers) {
-      const pts = viewConePoints(d);
+      // Just a facing indicator: a wedge that ignores walls.
       ctx.beginPath();
-      pts.forEach(([x, y], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, ox + x * tile, oy + y * tile));
+      ctx.moveTo(ox + d.x * tile, oy + d.y * tile);
+      ctx.arc(ox + d.x * tile, oy + d.y * tile, tile * CONE_DRAW_LEN, d.face - VIEW_FOV / 2, d.face + VIEW_FOV / 2);
       ctx.closePath();
       ctx.fillStyle = d.sees ? 'rgba(255,60,60,0.3)' : night ? 'rgba(255,240,120,0.28)' : 'rgba(255,200,40,0.2)';
       ctx.fill();
