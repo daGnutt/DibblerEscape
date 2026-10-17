@@ -16,13 +16,12 @@ No build step, no dependencies: plain HTML5 canvas and ES modules.
 | Action | Keyboard | Touch |
 |---|---|---|
 | Move | Arrow keys / WASD | On-screen joystick |
-| Sprint | Shift | Sprint button |
 | Kick your friend | Ctrl | Kick button |
 | Pause | P / Esc | ⏸ button (top right) |
 | Mute all sound | M | 🔊 button (top right) |
 | Mute music only | N | 🎵 button (top right) |
 
-Sprinting drains stamina; once exhausted you must recover before sprinting again.
+You sprint automatically when a dibbler gets within 1 tile, and keep sprinting until every dibbler is 3.5+ tiles away. Sprinting drains stamina; once exhausted you must recover before sprinting again.
 
 ### Things to know
 
