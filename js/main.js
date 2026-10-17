@@ -162,6 +162,10 @@ const openTiles = () => {
   return r;
 };
 
+// Each critter type shows up on only some levels, in a random amount up to the level's maximum.
+const CRITTER_CHANCE = 0.7;
+const critterCount = max => (Math.random() < CRITTER_CHANCE ? 1 + Math.floor(Math.random() * max) : 0);
+
 function startLevel() {
   const rand = rng((Date.now() ^ (level * 7919)) >>> 0);
   const cw = Math.min(5 + level, 14), ch = Math.min(4 + level, 9);
@@ -190,7 +194,7 @@ function startLevel() {
     return p && p.length >= 8 && !hasLineOfSight(player.x, player.y, x + 0.5, y + 0.5) && !exits.some(e => e.x === x && e.y === y);
   });
   const pick = () => open.splice(Math.floor(rand() * open.length), 1)[0];
-  const nD = Math.min(2 + level, 12), nC = Math.min(1 + Math.floor(level / 2), 6);
+  const nD = Math.min(2 + level, 12), nC = critterCount(Math.min(1 + Math.floor(level / 2), 6));
   dibblers = Array.from({ length: nD }, (_, i) => {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], repath: 0, face: Math.random() * Math.PI * 2, faceTarget: 0, chasing: false, sees: false, lost: 0, lastSeen: null, name: NAMES[i % NAMES.length], color: ROBES[i % ROBES.length] };
@@ -221,7 +225,7 @@ function startLevel() {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5 };
   });
-  crabs = Array.from({ length: Math.min(1 + Math.floor(level / 2), 8) }, () => {
+  crabs = Array.from({ length: critterCount(Math.min(1 + Math.floor(level / 2), 8)) }, () => {
     const [x, y] = pick();
     return { x: x + 0.5, y: y + 0.5, path: [], cooldown: 0, wait: rand() * 2 };
   });
