@@ -526,6 +526,9 @@ function update(dt) {
     if (c.cooldown === 0 && !petting && !(player.stun > 0) && Math.hypot(c.x - player.x, c.y - player.y) < CRAB_PINCH_DIST) {
       c.cooldown = CRAB_COOLDOWN;
       player.stun = STUN_TIME;
+      player.stamina = 0;
+      player.exhausted = true;
+      player.regenWait = STAMINA_REGEN_DELAY;
       c.path = [];
       sfx.yelp();
       popups.push({ x: player.x, y: player.y - 0.8, text: 'Ouch! Crab!', t: 1.2 });
