@@ -2,6 +2,7 @@ import { rng, generateMaze, bfs } from './maze.js';
 import { drawTourist, drawFriend, drawDibbler, drawCat, drawCrab, drawBanana, drawStall, drawHotel, drawBus } from './art.js';
 import { sfx, toggleMute, muted, toggleMusicMute, musicMuted, startMusic, stopMusic, setMusicIntensity } from './audio.js';
 import { THEMES, hash, drawGround, drawHouse, drawPalmTile, drawFountain, drawSplash } from './scenery.js';
+import { updateAutoSprint, regenStamina } from './stamina.js';
 import { LIST_SIZE, promptName, getGlobal, getLocal, globalStatus, fetchGlobal, submitGlobal, qualifiesGlobal, qualifiesLocal, addLocal } from './scores.js';
 
 const canvas = document.getElementById('c');
@@ -483,7 +484,8 @@ function update(dt) {
     } else if (player.fallen && !(player.stun > 0)) player.fallen = false;
     const [vx, vy] = sliding ? player.slideDir : stunned ? [0, 0] : inputVec();
     if (vx || vy) player.dir = vx < 0 ? -1 : vx > 0 ? 1 : player.dir;
-    const wantsSprint = !sliding && (keys.has('Shift') || sprintBtn.down) && (vx || vy);
+    player.autoSprint = updateAutoSprint(!!player.autoSprint, dibblers, player);
+    const wantsSprint = !sliding && (vx || vy) && (keys.has('Shift') || sprintBtn.down || player.autoSprint);
     player.sprinting = !!wantsSprint && !player.exhausted && player.stamina > 0;
     const spd = sliding ? PLAYER_SLIDE_SPEED : player.sprinting ? SPRINT_SPEED : PLAYER_SPEED;
     if (player.sprinting && player.moving) {
@@ -502,12 +504,12 @@ function update(dt) {
       if (player.stamina === 0) player.exhausted = true;
     }
   }
+  if (petting) { player.moving = false; player.sprinting = false; }
   if (!player.sprinting) {
     player.regenWait = Math.max(0, player.regenWait - dt);
-    if (!player.regenWait) player.stamina = Math.min(STAMINA_MAX, player.stamina + STAMINA_REGEN * dt);
+    player.stamina = regenStamina(player.stamina, STAMINA_MAX, STAMINA_REGEN, dt, player.moving, player.regenWait);
     if (player.exhausted && player.stamina >= STAMINA_MIN_RESTART) player.exhausted = false;
   }
-  if (petting) { player.moving = false; player.sprinting = false; }
   // Smoothed velocity so hunters can lead their target.
   const k = Math.min(1, dt * 12);
   player.vx = (player.vx || 0) + ((player.x - prevPX) / dt - (player.vx || 0)) * k;
