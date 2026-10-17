@@ -311,18 +311,6 @@ const canSee = d => {
   return r.clear && r.inCone;
 };
 
-function viewConePoints(d, rays = 14) {
-  const pts = [[d.x, d.y]];
-  for (let i = 0; i <= rays; i++) {
-    const a = d.face - VIEW_FOV / 2 + (VIEW_FOV * i) / rays;
-    const cx = Math.cos(a), cy = Math.sin(a);
-    let r = 0;
-    while (r < VIEW_RANGE && !isWall(Math.floor(d.x + cx * (r + 0.15)), Math.floor(d.y + cy * (r + 0.15)))) r += 0.15;
-    pts.push([d.x + cx * r, d.y + cy * r]);
-  }
-  return pts;
-}
-
 const tileOf = e => Array.isArray(e) ? e : [Math.floor(e.x), Math.floor(e.y)];
 
 function hasLineOfSight(x0, y0, x1, y1) {
@@ -798,10 +786,6 @@ function drawDebug() {
   const px = x => ox + x * tile, py = y => oy + y * tile;
   ctx.lineWidth = 1;
   for (const d of dibblers) {
-    ctx.strokeStyle = d.sees ? 'rgba(255,0,0,0.8)' : 'rgba(0,255,255,0.6)';
-    ctx.beginPath();
-    for (const [x, y] of viewConePoints(d, 28).slice(1)) { ctx.moveTo(px(d.x), py(d.y)); ctx.lineTo(px(x), py(y)); }
-    ctx.stroke();
     const r = spotRay(d);
     ctx.strokeStyle = !r.clear ? 'rgba(255,255,255,0.5)' : r.inCone ? '#ff00ff' : '#ffa500';
     ctx.lineWidth = 2;
