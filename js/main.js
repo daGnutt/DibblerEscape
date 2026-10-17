@@ -12,7 +12,7 @@ const PET_TIME = 2, CAT_COOLDOWN = 8, CAT_MEOW_DIST = 2.5, CAT_MEOW_COOLDOWN = 6
 const ROBES = ['#8e5cd9', '#2fb67c', '#d9803a', '#c94a6b', '#4a7fd9'];
 const NAMES = ['Dave', 'Mo', 'Fatima', 'Raj', 'Lucia', 'Omar', 'Bea', 'Kofi', 'Yuki', 'Stan', 'Ines', 'Gus'];
 const LOST_BEFORE_CHAT = 4, GIVE_UP_TIME = 12, CHAT_COOLDOWN = 10, RALLY_TIME = 9, SHOUT_RADIUS = 6, START_GRACE = 3;
-const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, NOTICE_RADIUS = 1.2, TURN_SPEED = 6, ALERT_TURN_SPEED = 18, PUFF_TILES = 4;
+const VIEW_RANGE = Infinity, VIEW_FOV = (100 * Math.PI) / 180, TURN_SPEED = 6, ALERT_TURN_SPEED = 18, PUFF_TILES = 4;
 
 let state = 'title'; // title | play | pause | levelDone | gameOver
 let level = 1, totalScore = 0, cash = START_CASH, time = 0;
@@ -297,12 +297,18 @@ function turnToward(d, dt) {
   d.face += Math.max(-rate, Math.min(rate, delta));
 }
 
-// A dibbler sees you if you're close, or inside its view cone, in range and not behind a wall.
-function canSee(d) {
+// One ray straight at the player; it only counts if it's unobstructed and falls inside the dibbler's view cone.
+function spotRay(d) {
   const dist = Math.hypot(player.x - d.x, player.y - d.y);
-  if (dist > VIEW_RANGE || !hasLineOfSight(d.x, d.y, player.x, player.y)) return false;
-  return dist < NOTICE_RADIUS || angleDiff(d.face, Math.atan2(player.y - d.y, player.x - d.x)) <= VIEW_FOV / 2;
+  const clear = dist <= VIEW_RANGE && hasLineOfSight(d.x, d.y, player.x, player.y);
+  const inCone = angleDiff(d.face, Math.atan2(player.y - d.y, player.x - d.x)) <= VIEW_FOV / 2;
+  return { clear, inCone };
 }
+
+const canSee = d => {
+  const r = spotRay(d);
+  return r.clear && r.inCone;
+};
 
 function viewConePoints(d, rays = 14) {
   const pts = [[d.x, d.y]];
@@ -795,6 +801,11 @@ function drawDebug() {
     ctx.beginPath();
     for (const [x, y] of viewConePoints(d, 28).slice(1)) { ctx.moveTo(px(d.x), py(d.y)); ctx.lineTo(px(x), py(y)); }
     ctx.stroke();
+    const r = spotRay(d);
+    ctx.strokeStyle = !r.clear ? 'rgba(255,255,255,0.5)' : r.inCone ? '#ff00ff' : '#ffa500';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px(d.x), py(d.y)); ctx.lineTo(px(player.x), py(player.y)); ctx.stroke();
+    ctx.lineWidth = 1;
     // Remaining route and its final destination.
     const route = [[d.x, d.y], ...d.path.map(([x, y]) => [x + 0.5, y + 0.5])];
     if (d.chasing && d.lastSeen) route.push([d.lastSeen[0] + 0.5, d.lastSeen[1] + 0.5]);
