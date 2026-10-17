@@ -17,11 +17,12 @@ function rect(ctx, x, y, w, h, fill, s) {
   ctx.strokeRect(x, y, w, h);
 }
 
-export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1, shirt = '#ff6b9a') {
+export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1, shirt = '#ff6b9a', friend = false) {
   const swing = moving ? Math.sin(phase) : 0;
   const bounce = moving ? -Math.abs(Math.cos(phase)) * s * 0.07 : 0;
   ctx.save();
   ctx.translate(x, y + bounce);
+  if (friend) { ctx.translate(0, s * 0.44); ctx.scale(1, 1.15); ctx.translate(0, -s * 0.44); } // taller, feet stay put
   ctx.scale(dir < 0 ? -1 : 1, 1);
   if (flash) ctx.globalAlpha = 0.5;
   const limb = (cx, cy, w, h, angle, fill) => {
@@ -42,12 +43,17 @@ export function drawTourist(ctx, x, y, s, phase, flash, moving, dir = 1, shirt =
   for (const [dx, dy] of [[-0.12, -0.15], [0.08, -0.1], [0, -0.2], [-0.05, 0]]) {
     ctx.beginPath(); ctx.arc(dx * s, dy * s, s * 0.04, 0, 7); ctx.fill();
   }
+  if (friend) rect(ctx, -s * 0.18, -s * 0.46, s * 0.36, s * 0.52, '#111', s); // long black hair behind
   ellipse(ctx, 0, -s * 0.38, s * 0.15, s * 0.15, '#f2d2b3', s);
   ctx.fillStyle = '#222';
   ctx.fillRect(-s * 0.07, -s * 0.4, s * 0.04, s * 0.05);
   ctx.fillRect(s * 0.03, -s * 0.4, s * 0.04, s * 0.05);
-  ellipse(ctx, 0, -s * 0.5, s * 0.28, s * 0.07, '#e8c35a', s); // tropic hat
-  ellipse(ctx, 0, -s * 0.56, s * 0.14, s * 0.1, '#e8c35a', s);
+  if (friend) {
+    ellipse(ctx, 0, -s * 0.49, s * 0.17, s * 0.08, '#111', s); // hair on top
+  } else {
+    ellipse(ctx, 0, -s * 0.5, s * 0.28, s * 0.07, '#e8c35a', s); // tropic hat
+    ellipse(ctx, 0, -s * 0.56, s * 0.14, s * 0.1, '#e8c35a', s);
+  }
   ctx.restore();
 }
 
@@ -185,10 +191,10 @@ export function drawBus(ctx, x, y, s) {
 }
 
 export function drawFriend(ctx, x, y, s, phase, moving, dir, fallen) {
-  if (!fallen) { drawTourist(ctx, x, y, s, phase, false, moving, dir, '#4db8ff'); return; }
+  if (!fallen) { drawTourist(ctx, x, y, s, phase, false, moving, dir, '#4db8ff', true); return; }
   ctx.save();
   ctx.translate(x, y + s * 0.2);
   ctx.rotate(-Math.PI / 2 * (dir < 0 ? -1 : 1));
-  drawTourist(ctx, 0, 0, s, 0, false, false, 1, '#4db8ff');
+  drawTourist(ctx, 0, 0, s, 0, false, false, 1, '#4db8ff', true);
   ctx.restore();
 }
