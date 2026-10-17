@@ -1025,6 +1025,7 @@ function draw() {
     ctx.fillRect(10, 46, bw + 4, 14);
     ctx.fillStyle = player.exhausted ? '#e0453a' : player.stamina < 35 ? '#ffb02e' : '#4fd36b';
     ctx.fillRect(12, 48, (bw * player.stamina) / STAMINA_MAX, 10);
+    text(player.exhausted ? 'Exhausted!' : 'Stamina', bw + 22, 59, 13, player.exhausted ? '#e0453a' : '#fff', 'left');
     if (!touchSeen) drawKeyHints();
     if (touchSeen) {
       if (friend) {
