@@ -714,7 +714,8 @@ function update(dt) {
 function endGame() {
   state = 'gameOver';
   sfx.lose();
-  if (totalScore > high) { high = totalScore; localStorage.setItem('dibblerHigh', String(high)); }
+  if (!debug && totalScore > high) { high = totalScore; localStorage.setItem('dibblerHigh', String(high)); }
+  if (debug) return; // debug runs never touch the high score lists
   const toGlobal = qualifiesGlobal(totalScore), toLocal = qualifiesLocal(totalScore);
   if (!toGlobal && !toLocal) return;
   const points = totalScore, lvl = level, runtime = Math.round(runTime);
@@ -733,7 +734,7 @@ function startGame() { runTime = 0; level = 1; totalScore = 0; cash = START_CASH
 function advance() {
   if (state === 'title' || state === 'gameOver') startGame();
   else if (state === 'levelDone') {
-    if (totalScore > high) { high = totalScore; localStorage.setItem('dibblerHigh', String(high)); }
+    if (!debug && totalScore > high) { high = totalScore; localStorage.setItem('dibblerHigh', String(high)); }
     level++; startLevel();
   } else if (state === 'pause') state = 'play';
 }
