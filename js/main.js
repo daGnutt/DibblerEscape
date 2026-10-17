@@ -360,7 +360,7 @@ const SPRINT_NOISE_RADIUS = 2.5;
 let noises = [];
 
 // Dibblers that aren't already on the hunt come to investigate a noise.
-function makeNoise(x, y, radius, retarget = true, except = null) {
+function makeNoise(x, y, radius, retarget = true, except = null, quiet = false) {
   noises.push({ x, y, t: 0, r: radius });
   const heard = [Math.floor(x), Math.floor(y)];
   for (const d of dibblers) {
@@ -368,6 +368,7 @@ function makeNoise(x, y, radius, retarget = true, except = null) {
     d.chasing = true;
     d.lost = 0;
     d.lastSeen = heard;
+    d.quiet = quiet; // investigating a noise that isn't the tourist: no group chat afterwards
     d.repath = 0;
   }
 }
@@ -551,7 +552,7 @@ function update(dt) {
         if (victim.path) victim.path = [];
         sfx.yelp();
         popups.push({ x: victim.x, y: victim.y - 0.8, text: victim === friend ? 'Ouch! Crab!' : 'Yeow!', t: 1.2 });
-        makeNoise(victim.x, victim.y, YELP_NOISE_RADIUS, false, victim);
+        makeNoise(victim.x, victim.y, YELP_NOISE_RADIUS, false, victim, true);
       }
     }
     if (!c.path.length) {
@@ -623,6 +624,7 @@ function update(dt) {
     if (d.sees) {
       if (!d.chasing) shoutSpotted(d);
       d.chasing = true;
+      d.quiet = false;
       d.lost = 0;
       d.lastSeen = tileOf(player);
       if (rally) d.rallyDone = rally.id; // has eyes on the tourist: ignore the group chat
@@ -631,10 +633,10 @@ function update(dt) {
       const arrived = d.lastSeen && Math.hypot(d.x - (d.lastSeen[0] + 0.5), d.y - (d.lastSeen[1] + 0.5)) < 0.3;
       if (arrived) {
         // Nobody here: tell the group chat and go back to roaming right away.
-        if (chatCooldown === 0) groupChat(d);
+        if (chatCooldown === 0 && !d.quiet) groupChat(d);
         d.chasing = false; d.lastSeen = null; d.path = []; d.repath = 0;
       } else {
-        if (d.lost > LOST_BEFORE_CHAT && chatCooldown === 0) groupChat(d);
+        if (d.lost > LOST_BEFORE_CHAT && chatCooldown === 0 && !d.quiet) groupChat(d);
         if (d.lost > GIVE_UP_TIME) { d.chasing = false; d.lastSeen = null; }
       }
     }
