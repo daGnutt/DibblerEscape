@@ -52,7 +52,33 @@ let tile = 32, ox = 0, oy = 0, W = 0, H = 0;
 const keys = new Set();
 const joy = { active: false, id: null, sx: 0, sy: 0, x: 0, y: 0 };
 const sprintBtn = { down: false, id: null };
-let touchSeen = false;
+let touchSeen = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+const settingsBtns = () => [
+  { id: 'mute', label: muted ? '🔇' : '🔊', off: muted },
+  { id: 'music', label: '🎵', off: musicMuted || muted },
+  { id: 'pause', label: state === 'pause' ? '▶' : '⏸', off: false },
+].filter(b => b.id !== 'pause' || state === 'play' || state === 'pause')
+  .map((b, i, a) => ({ ...b, x: W - 28 - (a.length - 1 - i) * 52, y: 72, r: 22 }));
+function drawSettingsBtns() {
+  for (const b of settingsBtns()) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    text(b.label, b.x, b.y + 7, 20);
+    if (b.off) {
+      ctx.strokeStyle = '#ff6b6b'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(b.x - 14, b.y + 14); ctx.lineTo(b.x + 14, b.y - 14); ctx.stroke();
+    }
+  }
+}
+function hitSettingsBtn(e) {
+  if (state === 'nameEntry') return false;
+  const b = settingsBtns().find(b => Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.r + 6);
+  if (!b) return false;
+  if (b.id === 'mute') toggleMute();
+  else if (b.id === 'music') toggleMusicMute();
+  else state = state === 'play' ? 'pause' : 'play';
+  return true;
+}
 const kickBtnRect = () => ({ x: W - 70, y: H - 180, r: 36 });
 let particles = [], puffAcc = 0, stepAcc = 0;
 const DAY_SMOKE = 'rgba(85,75,70,';
@@ -385,6 +411,8 @@ function updateFriend(dt) {
     if (f.slideT > 0) { f.slideT -= dt; moveEntity(f, f.slideDir[0] * 4 * dt, f.slideDir[1] * 4 * dt, 0.28); }
     return;
   }
+  // Chatting with a dibbler: stay put for as long as he is held up.
+  if (dibblers.some(d => d.distracted > 0)) { f.path = []; return; }
   f.repath -= dt;
   const dist = Math.hypot(player.x - f.x, player.y - f.y);
   if (dist > 1.4 && f.repath <= 0) {
@@ -813,7 +841,7 @@ function keycap(label, x, y) {
 function drawKeyHints() {
   const y = H - 40;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.roundRect(8, y - 6, friend ? 440 : 330, 38, 8); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(8, y - 6, friend ? 640 : 530, 38, 8); ctx.fill();
   let x = 14;
   for (const k of ['←', '↑', '↓', '→']) x += keycap(k, x, y) + 4;
   text('Move', x + 22, y + 20, 15);
@@ -824,6 +852,12 @@ function drawKeyHints() {
     x += 74;
     x += keycap('Ctrl', x, y) + 6;
     text('Kick', x + 22, y + 20, 15);
+    x += 50;
+  } else x += 12;
+  for (const [k, l] of [['P', 'Pause'], ['M', 'Sound'], ['N', 'Music']]) {
+    x += keycap(k, x, y) + 6;
+    text(l, x + 22, y + 20, 15);
+    x += 56;
   }
 }
 
@@ -842,7 +876,7 @@ function drawTitle(th) {
   ctx.beginPath(); ctx.roundRect(W / 2 - Math.min(W * 0.46, 380), py - fs * 1.4, Math.min(W * 0.92, 760), fs * 7.2, 14); ctx.fill();
   text('Get back to your hotel with cash left!', W / 2, py, fs);
   text('Dodge the street merchants and crabs. Always pet the cats.', W / 2, py + fs * 1.5, fs);
-  text('Arrows / WASD move · Shift sprint · P pause · M mute', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
+  text('Arrows / WASD move · Shift sprint · Ctrl kick · P pause · M sound · N music', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
   if (W > 2 * 270 + 60) drawScoreboards(py + fs * 7.8);
@@ -1014,13 +1048,14 @@ function draw() {
     }
   }
   if (state === 'title') drawTitle(th);
-  if (state === 'pause') overlay('Paused', ['Press P or tap to resume']);
+  if (state === 'pause') overlay('Paused', ['Press P or tap to resume', 'M sound · N music']);
   if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
   if (state === 'nameEntry') overlay('Out of cash!', [`Final score: ${totalScore}`, 'High score! Enter your name:']);
   if (state === 'gameOver') {
     overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press SPACE or tap to retry']);
     if (W > 2 * 270 + 60) drawScoreboards(H / 2 + 100);
   }
+  if (touchSeen && state !== 'nameEntry') drawSettingsBtns();
   if (showFps) text(fpsText, W - 12, H - 12, 14, '#fff', 'right');
 }
 
@@ -1045,6 +1080,7 @@ window.addEventListener('blur', () => { keys.clear(); if (state === 'play') stat
 
 canvas.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse') touchSeen = true;
+  if (hitSettingsBtn(e)) return;
   if (state === 'title' || state === 'gameOver') {
     // Touch screens have no space bar, so taps still start/restart there.
     if (e.pointerType !== 'mouse') advance();
