@@ -408,6 +408,8 @@ function interceptTile(d, speed) {
   const dist = Math.hypot(d.x - player.x, d.y - player.y);
   const lead = Math.min(dist / speed, 1.5);
   const vx = player.vx || 0, vy = player.vy || 0;
+  // Player closing in on this dibbler: leading would aim past it and make it turn tail, so go straight for the player.
+  if (vx * (d.x - player.x) + vy * (d.y - player.y) > 0) return tileOf(player);
   for (let f = 1; f > 0; f -= 0.1) {
     const tx = Math.floor(player.x + vx * lead * f), ty = Math.floor(player.y + vy * lead * f);
     if (maze.grid[ty] && maze.grid[ty][tx] === 0) return [tx, ty];
