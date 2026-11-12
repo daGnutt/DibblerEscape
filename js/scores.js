@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbwTOC7mvfNLtz3mObbvQOzOy-5GE8fDbB5Zq8pb27-tNlMsYA69aa8EqITvBNw2AVPb/exec';
+const API = 'https://highscore.gnutt.se/api/games/dibbler/boards/default';
 export const LIST_SIZE = 10;
 export const NAME_MAX = 20;
 
@@ -32,11 +32,11 @@ export function addLocal(name, points, level) {
 
 export async function fetchGlobal() {
   try {
-    const res = await fetch(API_URL);
+    const res = await fetch(`${API}?limit=${LIST_SIZE}`);
     const json = await res.json();
     if (json.status !== 'success' || !Array.isArray(json.data)) throw new Error('bad response');
     globalScores = json.data
-      .map(r => ({ name: String(r.Name ?? ''), points: Number(r.Points) || 0 }))
+      .map(r => ({ name: String(r.name ?? ''), points: Number(r.points) || 0 }))
       .sort((a, b) => b.points - a.points)
       .slice(0, LIST_SIZE);
     globalFailed = false;
@@ -47,11 +47,12 @@ export async function fetchGlobal() {
 
 export async function submitGlobal(name, points, level, runtime) {
   try {
-    // A plain-text body avoids a CORS preflight, which Apps Script can't answer.
-    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ name, points, level, runtime }) });
+    // A plain-text body avoids a CORS preflight.
+    await fetch(`${API}/scores`, { method: 'POST', body: JSON.stringify({ name, points, level, time: runtime }) });
   } catch { /* offline: the score stays in the local list */ }
   await fetchGlobal();
 }
+
 
 // Shows a name box over the canvas; calls done(name) on Enter/OK, or done(null) on Escape/Skip.
 export function promptName(done) {
