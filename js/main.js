@@ -260,6 +260,7 @@ function startLevel() {
   friend = nD >= 4 ? { x: player.x, y: player.y, path: [], repath: 0, dir: 1, runPhase: 0, moving: false, fallen: 0 } : null;
   layout();
   flashMsg = { text: `Level ${level}: reach the ${exits.length > 1 ? 'hotel or the bus' : 'hotel'}!`, t: 3 };
+  if (recordMsg) { flashMsg = { text: recordMsg, t: 4 }; recordMsg = null; }
   state = 'play';
 }
 
@@ -735,6 +736,7 @@ function update(dt) {
     if (Math.hypot(e.x + 0.5 - player.x, e.y + 0.5 - player.y) < 0.6) {
       const gained = cash * 100 + level * 50;
       totalScore += gained;
+      checkRecords();
       sfx.win();
       state = 'levelDone';
       flashMsg = null;
@@ -761,7 +763,20 @@ function endGame() {
   });
 }
 
-function startGame() { runTime = 0; level = 1; totalScore = 0; cash = START_CASH; startLevel(); }
+// Announces the first time this run's score beats the current #1 on a list.
+let beat = { global: false, local: false }, recordMsg = null;
+function checkRecords() {
+  const msgs = [];
+  for (const [key, list, label] of [['global', getGlobal(), 'global'], ['local', getLocal(), 'local']]) {
+    if (!beat[key] && list && list.length && totalScore > list[0].points) {
+      beat[key] = true;
+      msgs.push(`New ${label} #1!`);
+    }
+  }
+  if (msgs.length) recordMsg = `🏆 ${msgs.join(' ')} 🏆`;
+}
+
+function startGame() { beat = { global: false, local: false }; recordMsg = null; runTime = 0; level = 1; totalScore = 0; cash = START_CASH; startLevel(); }
 
 function advance() {
   if (state === 'title' || state === 'gameOver') startGame();
@@ -802,7 +817,7 @@ function text(str, x, y, size, color = '#fff', align = 'center') {
 }
 
 
-function drawScoreboards(yTop) {
+function drawScoreboards(yTop, withLocal = true) {
   const colW = Math.min(W * 0.46, 270);
   const rowH = Math.min(20, Math.max(12, (H - yTop - 50) / (LIST_SIZE + 1)));
   const rows = Math.max(0, Math.min(LIST_SIZE, Math.floor((H - yTop - 30) / rowH) - 1));
@@ -817,8 +832,8 @@ function drawScoreboards(yTop) {
     });
   };
   const gs = globalStatus();
-  col('Global top', getGlobal(), W / 2 - colW / 2 - 12, gs === 'loading' ? 'Loading…' : gs === 'offline' ? 'Offline' : 'No scores yet');
-  col('Local top', getLocal(), W / 2 + colW / 2 + 12, 'No scores yet');
+  col('Global top', getGlobal(), withLocal ? W / 2 - colW / 2 - 12 : W / 2, gs === 'loading' ? 'Loading…' : gs === 'offline' ? 'Offline' : 'No scores yet');
+  if (withLocal) col('Local top', getLocal(), W / 2 + colW / 2 + 12, 'No scores yet');
 }
 
 function overlay(title, lines) {
@@ -876,7 +891,7 @@ function drawTitle(th) {
   text('Arrows / WASD move · Ctrl kick · P pause · M sound · N music', W / 2, py + fs * 3, fs * 0.9, '#cfe9ff');
   text(Math.floor(time * 2) % 2 ? 'Press SPACE or tap to start' : '', W / 2, py + fs * 4.6, fs * 1.1, '#9fe870');
   text(`Best: ${high}`, W / 2, py + fs * 6, fs * 0.9, '#ffd84d');
-  if (W > 2 * 270 + 60) drawScoreboards(py + fs * 7.8);
+  drawScoreboards(py + fs * 7.8, false);
   text('Designed by Gnutt, coded by CoPilot for GitHub', W / 2, H - 16, Math.min(14, W / 34), '#cfe9ff');
 }
 
@@ -1017,6 +1032,9 @@ function draw() {
     ctx.fillRect(0, 0, W, 40);
     text(`Cash: ${'💵'.repeat(Math.max(0, cash))}`, 12, 28, 20, '#fff', 'left');
     text(`Level ${level}`, W / 2, 28, 20);
+    const top = (label, list) => list && list.length ? `${label} #1: ${list[0].name} ${list[0].points}` : '';
+    text(top('🌍', getGlobal()), W - 12, 60, 14, beat.global ? '#9fe870' : '#cfe9ff', 'right');
+    text(top('🏠', getLocal()), W - 12, 78, 14, beat.local ? '#9fe870' : '#cfe9ff', 'right');
     text(`Score ${totalScore}  Best ${high}${muted ? '  🔇' : musicMuted ? '  🎵✖' : ''}`, W - 12, 28, 18, '#fff', 'right');
     if (flashMsg) text(flashMsg.text, W / 2, H - 20, 22, '#ffd84d');
     if (chat) text(chat.text, W / 2, 84, Math.min(20, W / 28), '#9fe870');
@@ -1044,7 +1062,7 @@ function draw() {
   }
   if (state === 'title') drawTitle(th);
   if (state === 'pause') overlay('Paused', ['Press P or tap to resume', 'M sound · N music']);
-  if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, 'Press any key or tap for next level']);
+  if (state === 'levelDone') overlay('Made it!', [`Cash left: ${cash}  (+${cash * 100 + level * 50})`, `Total score: ${totalScore}`, ...(recordMsg ? [recordMsg] : []), 'Press any key or tap for next level']);
   if (state === 'nameEntry') overlay('Out of cash!', [`Final score: ${totalScore}`, 'High score! Enter your name:']);
   if (state === 'gameOver') {
     overlay('Out of cash!', [`Final score: ${totalScore}`, `Best: ${high}`, 'Press SPACE or tap to retry']);

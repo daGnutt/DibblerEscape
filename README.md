@@ -9,7 +9,7 @@ No build step, no dependencies: plain HTML5 canvas and ES modules.
 - You spawn on a random edge of a procedurally generated town. Reach the **hotel** (also on an edge, far from your start) with cash still in your wallet.
 - Every third level there is also a **guide bus** you can escape on.
 - You start with **3 cash**. When a dibbler catches you, you throw money at them and they go away. Run out of cash and it's game over.
-- Each level adds more dibblers; your best score is saved in the browser.
+- Each level adds more dibblers; your best score is saved in the browser. The title screen shows the global top 10; while playing, the HUD shows the global and local #1, and you get a 🏆 notice when you pass either.
 
 ### Controls
 
