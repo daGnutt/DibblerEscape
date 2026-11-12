@@ -52,3 +52,41 @@ export async function submitGlobal(name, points, level, runtime) {
   } catch { /* offline: the score stays in the local list */ }
   await fetchGlobal();
 }
+
+
+// Shows a name box over the canvas; calls done(name) on Enter/OK, or done(null) on Escape/Skip.
+export function promptName(done) {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:50%;top:64%;transform:translateX(-50%);display:flex;gap:8px;z-index:10';
+  const input = document.createElement('input');
+  input.maxLength = NAME_MAX;
+  input.placeholder = 'Your name';
+  input.value = savedName();
+  input.style.cssText = 'font:20px system-ui,sans-serif;padding:8px 12px;border-radius:8px;border:2px solid #ffd84d;width:min(60vw,260px)';
+  const mk = (label, bg) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = `font:bold 18px system-ui,sans-serif;padding:8px 14px;border-radius:8px;border:0;background:${bg};cursor:pointer`;
+    return b;
+  };
+  const ok = mk('OK', '#9fe870'), skip = mk('Skip', '#ddd');
+  let finished = false;
+  const finish = name => {
+    if (finished) return;
+    finished = true;
+    box.remove();
+    if (name) { try { localStorage.setItem('dibblerName', name); } catch { /* ignore */ } }
+    done(name);
+  };
+  const submit = () => finish(cleanName(input.value) || 'Anonymous');
+  ok.onclick = submit;
+  skip.onclick = () => finish(null);
+  input.onkeydown = e => {
+    if (e.key === 'Enter') submit();
+    else if (e.key === 'Escape') finish(null);
+  };
+  box.append(input, ok, skip);
+  document.body.append(box);
+  input.focus();
+  input.select();
+}
